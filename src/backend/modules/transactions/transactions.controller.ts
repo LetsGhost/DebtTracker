@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 
-import { ok } from "@/backend/common/response";
+import { ok } from "@/backend/common/http/response";
 import { TransactionsService } from "@/backend/modules/transactions/transactions.service";
 
 export class TransactionsController {

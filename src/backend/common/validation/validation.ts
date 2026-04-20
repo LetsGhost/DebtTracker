@@ -3,7 +3,7 @@ import "reflect-metadata";
 import { ClassConstructor, plainToInstance } from "class-transformer";
 import { validateOrReject } from "class-validator";
 
-import { ApiError } from "@/backend/common/errors";
+import { ApiError } from "@/backend/common/errors/errors";
 
 export const validateDto = async <T extends object>(
   dto: ClassConstructor<T>,

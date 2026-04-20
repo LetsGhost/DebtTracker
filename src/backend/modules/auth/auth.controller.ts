@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { clearAuthCookie, setAuthCookie } from "@/backend/common/auth";
-import { connectDatabase } from "@/backend/common/db";
-import { ApiError } from "@/backend/common/errors";
-import { fail, ok } from "@/backend/common/response";
-import { validateDto } from "@/backend/common/validation";
+import { clearAuthCookie, setAuthCookie } from "@/backend/common/auth/auth";
+import { connectDatabase } from "@/backend/common/database/db";
+import { ApiError } from "@/backend/common/errors/errors";
+import { fail, ok } from "@/backend/common/http/response";
+import { validateDto } from "@/backend/common/validation/validation";
 import { LoginDto, RegisterDto } from "@/backend/modules/auth/auth.dto";
 import { AuthService } from "@/backend/modules/auth/auth.service";
 

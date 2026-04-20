@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-import { env } from "@/backend/common/env";
+import { env } from "@/backend/common/config/env";
 
 let connected = false;
 

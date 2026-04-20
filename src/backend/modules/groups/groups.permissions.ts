@@ -1,4 +1,4 @@
-import { ApiError } from "@/backend/common/errors";
+import { ApiError } from "@/backend/common/errors/errors";
 import { GroupMemberModel } from "@/backend/modules/groups/group-member.entity";
 import { GroupPolicyModel } from "@/backend/modules/groups/group-policy.entity";
 import type { GroupRole } from "@/backend/modules/groups/groups.types";

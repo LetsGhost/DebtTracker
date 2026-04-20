@@ -1,8 +1,8 @@
 import jwt, { JwtPayload, SignOptions } from "jsonwebtoken";
 import { NextResponse } from "next/server";
 
-import { APP_CONSTANTS } from "@/backend/common/constants";
-import { env } from "@/backend/common/env";
+import { APP_CONSTANTS } from "@/backend/common/config/constants";
+import { env } from "@/backend/common/config/env";
 
 type TokenPayload = JwtPayload & { userId: string };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -33,7 +33,6 @@ export const GroupExpenseCreatePage = ({ groupId, userId }: GroupExpenseCreatePa
   const [paidByEmail, setPaidByEmail] = useState("");
   const [selectedParticipantEmails, setSelectedParticipantEmails] = useState<string[]>([]);
   const [advancedSplit, setAdvancedSplit] = useState("");
-  const [memberFilter, setMemberFilter] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -48,16 +47,6 @@ export const GroupExpenseCreatePage = ({ groupId, userId }: GroupExpenseCreatePa
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load members"));
   }, [groupId, userId]);
-
-  const filteredMembers = useMemo(() => {
-    const q = memberFilter.trim().toLowerCase();
-    if (!q) return members;
-    return members.filter(
-      (member) =>
-        member.userId.toLowerCase().includes(q) ||
-        (member.email && member.email.toLowerCase().includes(q))
-    );
-  }, [memberFilter, members]);
 
   const toggleParticipant = (email: string) => {
     setSelectedParticipantEmails((current) =>
@@ -102,6 +91,7 @@ export const GroupExpenseCreatePage = ({ groupId, userId }: GroupExpenseCreatePa
 
       await apiPost(`/api/groups/${groupId}/expenses`, {
         title: String(form.get("title") ?? "").trim(),
+        note: String(form.get("note") ?? "").trim() || undefined,
         paidByUserId: paidByMember?.userId || paidByEmail,
         totalAmount: Number(form.get("totalAmount") ?? 0),
         splitType,
@@ -133,6 +123,7 @@ export const GroupExpenseCreatePage = ({ groupId, userId }: GroupExpenseCreatePa
       <Card>
         <form className="space-y-4" onSubmit={onSubmit}>
           <TextField name="title" label="Expense title" placeholder="Dinner, groceries, rent..." required />
+          <TextField name="note" label="Description (optional)" placeholder="What was this for?" />
           <TextField name="totalAmount" label="Total amount" type="number" step="0.01" placeholder="0.00" required />
 
           <label className="flex flex-col gap-2 text-sm font-medium">
@@ -168,19 +159,9 @@ export const GroupExpenseCreatePage = ({ groupId, userId }: GroupExpenseCreatePa
           </label>
 
           <label className="flex flex-col gap-2 text-sm font-medium">
-            <span>Find participants</span>
-            <input
-              value={memberFilter}
-              onChange={(event) => setMemberFilter(event.target.value)}
-              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
-              placeholder="Search by name or email"
-            />
-          </label>
-
-          <label className="flex flex-col gap-2 text-sm font-medium">
             <span>Participants</span>
             <div className="grid gap-2 sm:grid-cols-2">
-              {filteredMembers.map((member) => {
+              {members.map((member) => {
                 const display = member.displayName || member.email || member.userId;
                 const checked = selectedParticipantEmails.includes(member.email);
                 return (

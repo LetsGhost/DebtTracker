@@ -1,4 +1,5 @@
-import { ApiError } from "@/backend/common/errors";
+import { ApiError } from "@/backend/common/errors/errors";
+import { getEventBus } from "@/backend/common/events/event-bus";
 import { DebtLedgerEntryModel } from "@/backend/modules/expenses/debt-ledger.entity";
 import { ExpenseParticipantModel } from "@/backend/modules/expenses/expense-participant.entity";
 import { ExpenseModel } from "@/backend/modules/expenses/expense.entity";
@@ -109,6 +110,18 @@ export class ExpensesService {
 
     if (ledgerRows.length > 0) {
       await DebtLedgerEntryModel.insertMany(ledgerRows);
+      await Promise.all(
+        ledgerRows.map((row) =>
+          getEventBus().emit("expense.debt.created", {
+            groupId,
+            expenseId: String(expense._id),
+            expenseTitle: expense.title,
+            fromUserId: row.fromUserId,
+            toUserId: row.toUserId,
+            amount: row.amount,
+          }),
+        ),
+      );
     }
 
     return {

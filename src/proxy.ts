@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { env } from "@/backend/common/env";
+import { env } from "@/backend/common/config/env";
 
 export const proxy = (request: NextRequest) => {
   const token = request.cookies.get(env.jwtCookieName)?.value;

@@ -1,4 +1,4 @@
-import { ApiEnvelope } from "@/backend/common/types";
+import { ApiEnvelope } from "@/backend/common/http/types";
 
 export const apiPost = async <T>(path: string, body: object): Promise<T> => {
   const response = await fetch(path, {

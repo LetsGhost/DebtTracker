@@ -1,7 +1,7 @@
 import { index, modelOptions, prop } from "@typegoose/typegoose";
 
-import { getModelForClass } from "@/backend/common/model-registry";
-import { MetadataEntity } from "@/backend/common/metadata.entity";
+import { getModelForClass } from "@/backend/common/models/model-registry";
+import { MetadataEntity } from "@/backend/common/models/metadata.entity";
 
 @index({ userAId: 1, userBId: 1 }, { unique: true })
 @modelOptions({

@@ -1,4 +1,5 @@
-import { ApiError } from "@/backend/common/errors";
+import { ApiError } from "@/backend/common/errors/errors";
+import { getEventBus } from "@/backend/common/events/event-bus";
 import { DebtLedgerEntryModel } from "@/backend/modules/expenses/debt-ledger.entity";
 import { getMemberContext } from "@/backend/modules/groups/groups.permissions";
 import { SettlementModel } from "@/backend/modules/settlements/settlement.entity";
@@ -14,6 +15,14 @@ export class SettlementsService {
       amount,
       status: "pending_receiver",
       senderConfirmedAt: new Date(),
+    });
+
+    await getEventBus().emit("settlement.payment.reported", {
+      settlementId: String(settlement._id),
+      groupId,
+      fromUserId: actorUserId,
+      toUserId,
+      amount,
     });
 
     return settlement;
@@ -58,6 +67,15 @@ export class SettlementsService {
       sourceId: String(settlement._id),
     });
 
+    await getEventBus().emit("settlement.payment.confirmed", {
+      settlementId: String(settlement._id),
+      groupId: settlement.groupId,
+      fromUserId: settlement.fromUserId,
+      toUserId: settlement.toUserId,
+      amount: settlement.amount,
+      confirmedByUserId: actorUserId,
+    });
+
     return { confirmed: true };
   }
 
@@ -80,6 +98,16 @@ export class SettlementsService {
     settlement.receiverDecisionAt = new Date();
     settlement.receiverDecisionReason = reason;
     await settlement.save();
+
+    await getEventBus().emit("settlement.payment.declined", {
+      settlementId: String(settlement._id),
+      groupId: settlement.groupId,
+      fromUserId: settlement.fromUserId,
+      toUserId: settlement.toUserId,
+      amount: settlement.amount,
+      declinedByUserId: actorUserId,
+      reason,
+    });
 
     return { declined: true };
   }

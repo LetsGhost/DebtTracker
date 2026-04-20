@@ -1,4 +1,5 @@
-import { ApiError } from "@/backend/common/errors";
+import { ApiError } from "@/backend/common/errors/errors";
+import { getEventBus } from "@/backend/common/events/event-bus";
 import { GroupModel } from "@/backend/modules/groups/group.entity";
 import { GroupInviteModel } from "@/backend/modules/groups/group-invite.entity";
 import { GroupMemberModel } from "@/backend/modules/groups/group-member.entity";
@@ -93,6 +94,14 @@ export class GroupsService {
       invitedByUserId: actorUserId,
       message,
       status: "pending",
+    });
+
+    await getEventBus().emit("group.invite.created", {
+      inviteId: String(invite._id),
+      groupId,
+      invitedUserId,
+      invitedByUserId: actorUserId,
+      message,
     });
 
     return {

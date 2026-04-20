@@ -1,8 +1,15 @@
+import fs from "node:fs";
+import path from "node:path";
 import winston from "winston";
 
-import { env } from "@/backend/common/env";
+import { env } from "@/backend/common/config/env";
 
 const isDev = env.nodeEnv === "development";
+const logsDir = path.join(process.cwd(), "logs");
+
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
+}
 
 const format = winston.format.combine(
   winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
@@ -17,42 +24,31 @@ const format = winston.format.combine(
 );
 
 const transports: winston.transport[] = [
-  new winston.transports.Console({
-    format: winston.format.combine(
-      winston.format.colorize(),
-      format,
-    ),
+  new winston.transports.File({
+    filename: path.join(logsDir, "error.log"),
+    level: "error",
+    maxsize: 5242880,
+    maxFiles: 5,
+    format,
+  }),
+  new winston.transports.File({
+    filename: path.join(logsDir, "combined.log"),
+    maxsize: 5242880,
+    maxFiles: 7,
+    format,
   }),
 ];
-
-if (!isDev) {
-  transports.push(
-    new winston.transports.File({
-      filename: "logs/error.log",
-      level: "error",
-      maxsize: 5242880,
-      maxFiles: 5,
-      format,
-    }),
-    new winston.transports.File({
-      filename: "logs/combined.log",
-      maxsize: 5242880,
-      maxFiles: 7,
-      format,
-    }),
-  );
-}
 
 export const logger = winston.createLogger({
   level: isDev ? "debug" : "info",
   format,
   transports,
   exceptionHandlers: [
-    new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        format,
-      ),
+    new winston.transports.File({
+      filename: path.join(logsDir, "exceptions.log"),
+      maxsize: 5242880,
+      maxFiles: 5,
+      format,
     }),
   ],
 });

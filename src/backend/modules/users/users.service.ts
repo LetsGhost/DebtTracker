@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 
-import { ApiError } from "@/backend/common/errors";
-import { logger } from "@/backend/common/logger";
+import { ApiError } from "@/backend/common/errors/errors";
+import { logger } from "@/backend/common/logging/logger";
 import { UserModel } from "@/backend/modules/users/users.entity";
 
 export class UsersService {

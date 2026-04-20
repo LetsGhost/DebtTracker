@@ -28,10 +28,33 @@ type Settlement = {
   createdAt?: string;
 };
 type Notification = { _id: string; type: string; payload: Record<string, unknown>; createdAt: string; readAt?: string };
+type InvitePayload = {
+  groupName?: string;
+  invitedByDisplayName?: string;
+  invitedByUserId?: string;
+};
+type DebtDuePayload = {
+  groupName?: string;
+  toUserDisplayName?: string;
+  toUserId?: string;
+  amount?: number;
+};
+type SettlementPendingPayload = {
+  groupName?: string;
+  fromUserDisplayName?: string;
+  fromUserId?: string;
+  amount?: number;
+};
 
 type TimelineItem =
   | { id: string; kind: "expense"; groupName: string; title: string; amount: number; date: string; subtitle: string }
   | { id: string; kind: "settlement"; groupName: string; title: string; amount: number; date: string; subtitle: string };
+
+const formatDateTime = (value: string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toISOString().slice(0, 16).replace("T", " ");
+};
 
 export const DashboardTimelinePage = ({ user }: DashboardTimelinePageProps) => {
   const [groups, setGroups] = useState<Group[]>([]);
@@ -96,6 +119,30 @@ export const DashboardTimelinePage = ({ user }: DashboardTimelinePageProps) => {
     [notifications],
   );
 
+  const renderNotificationPreview = (notification: Notification) => {
+    if (notification.type === "invite") {
+      const payload = notification.payload as InvitePayload;
+      const groupName = payload.groupName ?? "a group";
+      const invitedBy = payload.invitedByDisplayName ?? payload.invitedByUserId ?? "someone";
+      return `Invite to ${groupName} from ${invitedBy}`;
+    }
+
+    if (notification.type === "debt_due") {
+      const payload = notification.payload as DebtDuePayload;
+      const creditor = payload.toUserDisplayName ?? payload.toUserId ?? "someone";
+      const amount = typeof payload.amount === "number" ? payload.amount.toFixed(2) : "0.00";
+      return `Debt due: ${amount} to ${creditor}`;
+    }
+
+    if (notification.type === "settlement_pending") {
+      const payload = notification.payload as SettlementPendingPayload;
+      const fromUser = payload.fromUserDisplayName ?? payload.fromUserId ?? "someone";
+      return `Payment confirmation needed from ${fromUser}`;
+    }
+
+    return notification.type;
+  };
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 px-4 py-6 md:py-8">
       <header className="space-y-4 rounded-2xl border border-black/10 bg-(--surface) p-4 md:p-5">
@@ -128,7 +175,7 @@ export const DashboardTimelinePage = ({ user }: DashboardTimelinePageProps) => {
                   <p className="font-semibold">{item.title}</p>
                   <p className="font-semibold">{item.amount.toFixed(2)}</p>
                 </div>
-                <p className="text-xs text-(--text-muted)">{item.groupName} · {new Date(item.date).toLocaleString()}</p>
+                <p className="text-xs text-(--text-muted)">{item.groupName} · {formatDateTime(item.date)}</p>
                 <p className="mt-1 text-sm text-(--text-muted)">{item.subtitle}</p>
               </div>
             ))}
@@ -136,22 +183,25 @@ export const DashboardTimelinePage = ({ user }: DashboardTimelinePageProps) => {
         </Card>
 
         <div className="space-y-5">
-          <Card>
+          <Link href="/dashboard/notifications" className="block">
+            <Card>
             <div className="mb-4 flex items-center gap-2">
               <Bell size={18} />
               <h2 className="text-lg font-semibold">Notifications</h2>
             </div>
             <p className="mb-3 text-sm text-(--text-muted)">Unread: {unreadNotifications.length}</p>
+            <p className="mb-3 text-xs font-semibold text-(--brand)">Open full notifications view</p>
             <div className="space-y-2">
               {notifications.length === 0 && <p className="text-sm text-(--text-muted)">No notifications.</p>}
               {notifications.slice(0, 8).map((notification) => (
                 <div key={notification._id} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-sm">
-                  <p className="font-semibold">{notification.type}</p>
-                  <p className="text-xs text-(--text-muted)">{new Date(notification.createdAt).toLocaleString()}</p>
+                  <p className="font-semibold">{renderNotificationPreview(notification)}</p>
+                  <p className="text-xs text-(--text-muted)">{formatDateTime(notification.createdAt)}</p>
                 </div>
               ))}
             </div>
-          </Card>
+            </Card>
+          </Link>
 
           <Card>
             <div className="mb-3 flex items-center gap-2">

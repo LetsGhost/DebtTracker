@@ -26,6 +26,7 @@ import { TransactionsController } from "@/backend/modules/transactions/transacti
 import { TransactionsService } from "@/backend/modules/transactions/transactions.service";
 import { UsersController } from "@/backend/modules/users/users.controller";
 import { UsersService } from "@/backend/modules/users/users.service";
+import { registerNotificationEventHandlers } from "@/backend/modules/notifications/notifications.events";
 
 const usersService = new UsersService();
 const authService = new AuthService(usersService);
@@ -42,6 +43,8 @@ const p2pService = new P2PService();
 const notificationsService = new NotificationsService();
 const sysAdminService = new SysAdminService();
 
+registerNotificationEventHandlers();
+
 export const container = {
   usersController: new UsersController(usersService),
   authController: new AuthController(authService),
@@ -49,7 +52,7 @@ export const container = {
   categoriesController: new CategoriesController(categoriesService),
   budgetsController: new BudgetsController(budgetsService),
   collaborationsController: new CollaborationsController(collaborationsService),
-  groupsController: new GroupsController(groupsService),
+  groupsController: new GroupsController(groupsService, expensesService, balancesService, settlementsService),
   expensesController: new ExpensesController(expensesService),
   balancesController: new BalancesController(balancesService),
   settlementsController: new SettlementsController(settlementsService),

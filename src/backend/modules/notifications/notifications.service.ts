@@ -9,7 +9,7 @@ export class NotificationsService {
     return NotificationModel.findOneAndUpdate(
       { _id: notificationId, userId },
       { $set: { readAt: new Date() } },
-      { new: true },
+      { returnDocument: "after" },
     ).lean();
   }
 }

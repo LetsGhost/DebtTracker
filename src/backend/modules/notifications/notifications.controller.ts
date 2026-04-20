@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
 
-import { connectDatabase } from "@/backend/common/db";
-import { ApiError } from "@/backend/common/errors";
-import { getUserIdFromRequest } from "@/backend/common/request-auth";
-import { fail, ok } from "@/backend/common/response";
+import { connectDatabase } from "@/backend/common/database/db";
+import { ApiError } from "@/backend/common/errors/errors";
+import { getUserIdFromRequest } from "@/backend/common/auth/request-auth";
+import { fail, ok } from "@/backend/common/http/response";
 import { NotificationsService } from "@/backend/modules/notifications/notifications.service";
 
 export class NotificationsController {

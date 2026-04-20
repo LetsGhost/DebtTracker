@@ -21,9 +21,19 @@ type GroupDetails = {
 
 type BalanceRow = { fromUserId: string; toUserId: string; amount: number; fromUserName?: string; toUserName?: string };
 type Member = { id: string; userId: string; displayName: string; email: string; role: string };
+type Settlement = {
+  _id: string;
+  fromUserId: string;
+  toUserId: string;
+  amount: number;
+  status: "pending_receiver" | "confirmed" | "declined";
+  receiverDecisionAt?: string;
+  createdAt?: string;
+};
 type Expense = {
   _id: string;
   title: string;
+  note?: string;
   totalAmount: number;
   paidByUserId: string;
   paidByDisplayName?: string;
@@ -33,7 +43,22 @@ type GroupPolicy = {
   allowMemberRoleSelfLeave: boolean;
 };
 
+type GroupDetailsBundle = {
+  group: GroupDetails;
+  policy: GroupPolicy;
+  expenses: Expense[];
+  balances: BalanceRow[];
+  members: Member[];
+  settlements: Settlement[];
+};
+
 type GroupDetailsPageProps = { groupId: string; userId: string };
+
+const formatDate = (value: string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toISOString().slice(0, 10);
+};
 
 export const GroupDetailsPage = ({ groupId, userId }: GroupDetailsPageProps) => {
   const [group, setGroup] = useState<GroupDetails | null>(null);
@@ -41,23 +66,20 @@ export const GroupDetailsPage = ({ groupId, userId }: GroupDetailsPageProps) => 
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [balances, setBalances] = useState<BalanceRow[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  const [settlements, setSettlements] = useState<Settlement[]>([]);
+  const [pendingDebtActions, setPendingDebtActions] = useState<string[]>([]);
   const [error, setError] = useState("");
 
   const load = async () => {
     try {
-      const [groupResult, policyResult, expensesResult, balancesResult, membersResult] = await Promise.all([
-        apiGet<GroupDetails>(`/api/groups/${groupId}`),
-        apiGet<GroupPolicy>(`/api/groups/${groupId}/policy`),
-        apiGet<Expense[]>(`/api/groups/${groupId}/expenses`),
-        apiGet<BalanceRow[]>(`/api/groups/${groupId}/balances/graph`),
-        apiGet<Member[]>(`/api/groups/${groupId}/members`),
-      ]);
+      const result = await apiGet<GroupDetailsBundle>(`/api/groups/${groupId}/details`);
 
-      setGroup(groupResult);
-      setPolicy(policyResult);
-      setExpenses(expensesResult.sort((a, b) => new Date(b.expenseDate).getTime() - new Date(a.expenseDate).getTime()));
-      setBalances(balancesResult);
-      setMembers(membersResult);
+      setGroup(result.group);
+      setPolicy(result.policy);
+      setExpenses(result.expenses.sort((a, b) => new Date(b.expenseDate).getTime() - new Date(a.expenseDate).getTime()));
+      setBalances(result.balances);
+      setMembers(result.members);
+      setSettlements(result.settlements);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load group");
     }
@@ -83,6 +105,43 @@ export const GroupDetailsPage = ({ groupId, userId }: GroupDetailsPageProps) => 
 
   const totalOwed = userOwed.reduce((sum, row) => sum + row.amount, 0);
   const totalDebts = userDebts.reduce((sum, row) => sum + row.amount, 0);
+  const leaveDisabled = policy?.allowMemberRoleSelfLeave !== true;
+
+  const pendingSettlementKeys = useMemo(() => {
+    const keys = new Set<string>();
+    settlements
+      .filter((s) => s.status === "pending_receiver" && s.fromUserId === userId)
+      .forEach((s) => keys.add(`${s.toUserId}:${s.amount.toFixed(2)}`));
+    return keys;
+  }, [settlements, userId]);
+
+  const confirmedSettlements = useMemo(() => {
+    return settlements
+      .filter((settlement) => settlement.status === "confirmed")
+      .sort((a, b) => {
+        const aDate = a.receiverDecisionAt ?? a.createdAt ?? "";
+        const bDate = b.receiverDecisionAt ?? b.createdAt ?? "";
+        return new Date(bDate).getTime() - new Date(aDate).getTime();
+      });
+  }, [settlements]);
+
+  const markDebtAsPaid = async (toUserId: string, amount: number) => {
+    const actionKey = `${toUserId}:${amount.toFixed(2)}`;
+    setError("");
+    setPendingDebtActions((current) => [...current, actionKey]);
+
+    try {
+      await apiPost(`/api/groups/${groupId}/settlements`, {
+        toUserId,
+        amount,
+      });
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to send payment confirmation");
+    } finally {
+      setPendingDebtActions((current) => current.filter((item) => item !== actionKey));
+    }
+  };
 
   const onLeave = async () => {
     if (!policy?.allowMemberRoleSelfLeave) {
@@ -120,11 +179,11 @@ export const GroupDetailsPage = ({ groupId, userId }: GroupDetailsPageProps) => 
               <Link href={`/groups/${groupId}/edit`} className="rounded-lg bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-300">
                 Settings
               </Link>
-            ) : (
-              <Button variant="ghost" onClick={onLeave} disabled={!policy?.allowMemberRoleSelfLeave}>
+            ) : group ? (
+              <Button variant="ghost" onClick={onLeave} disabled={leaveDisabled}>
                 Leave
               </Button>
-            )}
+            ) : null}
           </div>
         </div>
         <ModuleNav />
@@ -143,7 +202,23 @@ export const GroupDetailsPage = ({ groupId, userId }: GroupDetailsPageProps) => 
             ) : (
               userDebts.map((row, idx) => (
                 <div key={idx} className="text-sm text-gray-600">
-                  <span className="font-medium">→ {memberMap.get(row.toUserId) || row.toUserId}</span>: {row.amount.toFixed(2)}
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span>
+                      <span className="font-medium">→ {memberMap.get(row.toUserId) || row.toUserId}</span>: {row.amount.toFixed(2)}
+                    </span>
+                    {pendingSettlementKeys.has(`${row.toUserId}:${row.amount.toFixed(2)}`) ? (
+                      <span className="rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">Pending confirmation</span>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => markDebtAsPaid(row.toUserId, row.amount)}
+                        disabled={pendingDebtActions.includes(`${row.toUserId}:${row.amount.toFixed(2)}`)}
+                      >
+                        I have paid
+                      </Button>
+                    )}
+                  </div>
                 </div>
               ))
             )}
@@ -205,11 +280,36 @@ export const GroupDetailsPage = ({ groupId, userId }: GroupDetailsPageProps) => 
               >
                 <div>
                   <p className="font-semibold text-gray-900">{expense.title}</p>
+                  {expense.note && <p className="text-xs text-gray-500">{expense.note}</p>}
                   <p className="text-xs text-gray-500">
-                    Paid by {memberMap.get(expense.paidByUserId) || expense.paidByDisplayName || expense.paidByUserId} · {new Date(expense.expenseDate).toLocaleDateString()}
+                    Paid by {memberMap.get(expense.paidByUserId) || expense.paidByDisplayName || expense.paidByUserId} · {formatDate(expense.expenseDate)}
                   </p>
                 </div>
                 <p className="font-semibold text-gray-900">{expense.totalAmount.toFixed(2)}</p>
+              </div>
+            ))
+          )}
+        </div>
+      </Card>
+
+      <Card>
+        <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+          <span>Payment History</span>
+          <span className="text-sm font-normal text-gray-500">({confirmedSettlements.length})</span>
+        </h2>
+        <div className="space-y-2">
+          {confirmedSettlements.length === 0 ? (
+            <p className="text-sm text-gray-500">No confirmed payments yet</p>
+          ) : (
+            confirmedSettlements.map((settlement) => (
+              <div key={settlement._id} className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm">
+                <div>
+                  <p className="font-semibold text-gray-900">
+                    {memberMap.get(settlement.fromUserId) || settlement.fromUserId} paid {memberMap.get(settlement.toUserId) || settlement.toUserId}
+                  </p>
+                  <p className="text-xs text-gray-500">{formatDate(settlement.receiverDecisionAt ?? settlement.createdAt ?? "")}</p>
+                </div>
+                <p className="font-semibold text-gray-900">{settlement.amount.toFixed(2)}</p>
               </div>
             ))
           )}

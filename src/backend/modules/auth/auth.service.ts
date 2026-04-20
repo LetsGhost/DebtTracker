@@ -1,9 +1,9 @@
 import { cookies } from "next/headers";
 
-import { env } from "@/backend/common/env";
-import { ApiError } from "@/backend/common/errors";
-import { signAccessToken, verifyAccessToken } from "@/backend/common/auth";
-import { logger } from "@/backend/common/logger";
+import { env } from "@/backend/common/config/env";
+import { ApiError } from "@/backend/common/errors/errors";
+import { signAccessToken, verifyAccessToken } from "@/backend/common/auth/auth";
+import { logger } from "@/backend/common/logging/logger";
 import { UsersService } from "@/backend/modules/users/users.service";
 
 export class AuthService {

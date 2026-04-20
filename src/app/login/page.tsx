@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { env } from "@/backend/common/env";
+import { env } from "@/backend/common/config/env";
 import { LoginPage } from "@/frontend/modules/auth/pages/LoginPage";
 
 export default async function LoginRoute() {

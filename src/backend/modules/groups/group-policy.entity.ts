@@ -1,7 +1,7 @@
 import { index, modelOptions, prop } from "@typegoose/typegoose";
 
-import { getModelForClass } from "@/backend/common/model-registry";
-import { MetadataEntity } from "@/backend/common/metadata.entity";
+import { getModelForClass } from "@/backend/common/models/model-registry";
+import { MetadataEntity } from "@/backend/common/models/metadata.entity";
 import { GROUP_VISIBILITY_MODES } from "@/backend/modules/groups/groups.types";
 import type { GroupVisibilityMode } from "@/backend/modules/groups/groups.types";
 

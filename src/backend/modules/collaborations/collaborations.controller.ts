@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 
-import { ok } from "@/backend/common/response";
+import { ok } from "@/backend/common/http/response";
 import { CollaborationsService } from "@/backend/modules/collaborations/collaborations.service";
 
 export class CollaborationsController {

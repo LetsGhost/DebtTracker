@@ -1,21 +1,57 @@
 import { NextRequest } from "next/server";
 
-import { connectDatabase } from "@/backend/common/db";
-import { ApiError } from "@/backend/common/errors";
-import { getUserIdFromRequest } from "@/backend/common/request-auth";
-import { fail, ok } from "@/backend/common/response";
-import { validateDto } from "@/backend/common/validation";
+import { connectDatabase } from "@/backend/common/database/db";
+import { ApiError } from "@/backend/common/errors/errors";
+import { getUserIdFromRequest } from "@/backend/common/auth/request-auth";
+import { fail, ok } from "@/backend/common/http/response";
+import { validateDto } from "@/backend/common/validation/validation";
+import { BalancesService } from "@/backend/modules/balances/balances.service";
+import { ExpensesService } from "@/backend/modules/expenses/expenses.service";
 import { BatchInviteDto, CreateGroupDto, InviteUserDto, UpdatePolicyDto, UpdateRoleDto } from "@/backend/modules/groups/groups.dto";
 import { GroupsService } from "@/backend/modules/groups/groups.service";
+import { SettlementsService } from "@/backend/modules/settlements/settlements.service";
 
 export class GroupsController {
-  constructor(private readonly groupsService: GroupsService) {}
+  constructor(
+    private readonly groupsService: GroupsService,
+    private readonly expensesService: ExpensesService,
+    private readonly balancesService: BalancesService,
+    private readonly settlementsService: SettlementsService,
+  ) {}
 
   async getGroup(request: NextRequest, groupId: string) {
     try {
       await connectDatabase();
       const userId = getUserIdFromRequest(request);
       return ok(await this.groupsService.getGroup(groupId, userId));
+    } catch (error) {
+      if (error instanceof ApiError) return fail(error.message, error.statusCode);
+      return fail("Internal server error", 500);
+    }
+  }
+
+  async getDetailsBundle(request: NextRequest, groupId: string) {
+    try {
+      await connectDatabase();
+      const userId = getUserIdFromRequest(request);
+
+      const [group, policy, expenses, balances, members, settlements] = await Promise.all([
+        this.groupsService.getGroup(groupId, userId),
+        this.groupsService.getPolicy(groupId, userId),
+        this.expensesService.listExpenses(groupId, userId),
+        this.balancesService.getGroupGraph(groupId, userId),
+        this.groupsService.listMembers(groupId, userId),
+        this.settlementsService.list(groupId, userId),
+      ]);
+
+      return ok({
+        group,
+        policy,
+        expenses,
+        balances,
+        members,
+        settlements,
+      });
     } catch (error) {
       if (error instanceof ApiError) return fail(error.message, error.statusCode);
       return fail("Internal server error", 500);

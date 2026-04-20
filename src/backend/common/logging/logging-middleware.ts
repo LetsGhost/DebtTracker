@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { NextRequest, NextResponse } from "next/server";
 
-import { logger } from "@/backend/common/logger";
+import { logger } from "@/backend/common/logging/logger";
 
 export const withLogging = <TContext = unknown>(
   handler: (req: NextRequest, context?: TContext) => Promise<NextResponse>,
@@ -11,15 +11,11 @@ export const withLogging = <TContext = unknown>(
     const method = request.method;
     const pathname = new URL(request.url).pathname;
 
-    logger.info(`→ ${method} ${pathname}`, { requestId });
-
     const startTime = Date.now();
     let response: NextResponse;
 
     try {
       response = await handler(request, context);
-      const duration = Date.now() - startTime;
-      logger.info(`← ${method} ${pathname} ${response.status}`, { requestId, duration });
     } catch (error) {
       const duration = Date.now() - startTime;
       logger.error(

@@ -1,4 +1,4 @@
-import { ApiError } from "@/backend/common/errors";
+import { ApiError } from "@/backend/common/errors/errors";
 import { P2PExpenseModel } from "@/backend/modules/p2p/p2p-expense.entity";
 import { P2PThreadModel } from "@/backend/modules/p2p/p2p-thread.entity";
 

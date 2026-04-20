@@ -1,8 +1,8 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { verifyAccessToken } from "@/backend/common/auth";
-import { env } from "@/backend/common/env";
+import { verifyAccessToken } from "@/backend/common/auth/auth";
+import { env } from "@/backend/common/config/env";
 import { container } from "@/backend/container";
 
 export type CurrentUser = {

@@ -1,10 +1,10 @@
 import { NextRequest } from "next/server";
 
-import { connectDatabase } from "@/backend/common/db";
-import { env } from "@/backend/common/env";
-import { ApiError } from "@/backend/common/errors";
-import { getUserIdFromRequest } from "@/backend/common/request-auth";
-import { fail, ok } from "@/backend/common/response";
+import { connectDatabase } from "@/backend/common/database/db";
+import { env } from "@/backend/common/config/env";
+import { ApiError } from "@/backend/common/errors/errors";
+import { getUserIdFromRequest } from "@/backend/common/auth/request-auth";
+import { fail, ok } from "@/backend/common/http/response";
 import { UsersService } from "@/backend/modules/users/users.service";
 import { SysAdminService } from "@/backend/modules/sysadmin/sysadmin.service";
 

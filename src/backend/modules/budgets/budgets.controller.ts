@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 
-import { ok } from "@/backend/common/response";
+import { ok } from "@/backend/common/http/response";
 import { BudgetsService } from "@/backend/modules/budgets/budgets.service";
 
 export class BudgetsController {
