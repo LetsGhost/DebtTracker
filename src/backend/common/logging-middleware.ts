@@ -1,0 +1,42 @@
+import { v4 as uuidv4 } from "uuid";
+import { NextRequest, NextResponse } from "next/server";
+
+import { logger } from "@/backend/common/logger";
+
+export const withLogging = <TContext = unknown>(
+  handler: (req: NextRequest, context?: TContext) => Promise<NextResponse>,
+) => {
+  return async (request: NextRequest, context: TContext) => {
+    const requestId = uuidv4();
+    const method = request.method;
+    const pathname = new URL(request.url).pathname;
+
+    logger.info(`→ ${method} ${pathname}`, { requestId });
+
+    const startTime = Date.now();
+    let response: NextResponse;
+
+    try {
+      response = await handler(request, context);
+      const duration = Date.now() - startTime;
+      logger.info(`← ${method} ${pathname} ${response.status}`, { requestId, duration });
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      logger.error(
+        `✗ ${method} ${pathname}`,
+        {
+          requestId,
+          duration,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
+      response = NextResponse.json(
+        { success: false, error: "Internal server error" },
+        { status: 500 },
+      );
+    }
+
+    response.headers.set("x-request-id", requestId);
+    return response;
+  };
+};

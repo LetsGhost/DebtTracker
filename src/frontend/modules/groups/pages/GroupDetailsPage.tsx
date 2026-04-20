@@ -1,0 +1,224 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { Plus, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+
+import { Button } from "@/frontend/shared/components/Button";
+import { Card } from "@/frontend/shared/components/Card";
+import { ModuleNav } from "@/frontend/shared/components/ModuleNav";
+import { apiGet, apiPost } from "@/frontend/shared/lib/api-client";
+
+type GroupRole = "admin" | "moderator" | "editor" | "viewer";
+
+type GroupDetails = {
+  id: string;
+  name: string;
+  baseCurrency: string;
+  myRole: GroupRole;
+  isAdmin: boolean;
+};
+
+type BalanceRow = { fromUserId: string; toUserId: string; amount: number; fromUserName?: string; toUserName?: string };
+type Member = { id: string; userId: string; displayName: string; email: string; role: string };
+type Expense = {
+  _id: string;
+  title: string;
+  totalAmount: number;
+  paidByUserId: string;
+  paidByDisplayName?: string;
+  expenseDate: string;
+};
+type GroupPolicy = {
+  allowMemberRoleSelfLeave: boolean;
+};
+
+type GroupDetailsPageProps = { groupId: string; userId: string };
+
+export const GroupDetailsPage = ({ groupId, userId }: GroupDetailsPageProps) => {
+  const [group, setGroup] = useState<GroupDetails | null>(null);
+  const [policy, setPolicy] = useState<GroupPolicy | null>(null);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [balances, setBalances] = useState<BalanceRow[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [error, setError] = useState("");
+
+  const load = async () => {
+    try {
+      const [groupResult, policyResult, expensesResult, balancesResult, membersResult] = await Promise.all([
+        apiGet<GroupDetails>(`/api/groups/${groupId}`),
+        apiGet<GroupPolicy>(`/api/groups/${groupId}/policy`),
+        apiGet<Expense[]>(`/api/groups/${groupId}/expenses`),
+        apiGet<BalanceRow[]>(`/api/groups/${groupId}/balances/graph`),
+        apiGet<Member[]>(`/api/groups/${groupId}/members`),
+      ]);
+
+      setGroup(groupResult);
+      setPolicy(policyResult);
+      setExpenses(expensesResult.sort((a, b) => new Date(b.expenseDate).getTime() - new Date(a.expenseDate).getTime()));
+      setBalances(balancesResult);
+      setMembers(membersResult);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load group");
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, [groupId]);
+
+  const memberMap = useMemo(() => {
+    const map = new Map<string, string>();
+    members.forEach((m) => map.set(m.userId, m.displayName || m.email || m.userId));
+    return map;
+  }, [members]);
+
+  const userDebts = useMemo(() => {
+    return balances.filter((row) => row.fromUserId === userId);
+  }, [balances, userId]);
+
+  const userOwed = useMemo(() => {
+    return balances.filter((row) => row.toUserId === userId);
+  }, [balances, userId]);
+
+  const totalOwed = userOwed.reduce((sum, row) => sum + row.amount, 0);
+  const totalDebts = userDebts.reduce((sum, row) => sum + row.amount, 0);
+
+  const onLeave = async () => {
+    if (!policy?.allowMemberRoleSelfLeave) {
+      setError("Leaving this group is disabled by policy.");
+      return;
+    }
+
+    try {
+      await apiPost(`/api/groups/${groupId}/leave`, {});
+      window.location.href = "/groups";
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to leave group");
+    }
+  };
+
+  return (
+    <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 px-4 py-6 md:py-8">
+      <header className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4 md:p-5">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">{group?.name ?? "Group"}</h1>
+            <p className="text-sm text-gray-500">
+              Role: {group?.myRole ?? "-"} · Currency: {group?.baseCurrency ?? "EUR"}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Link
+              href={`/groups/${groupId}/expenses/new`}
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-600"
+            >
+              <Plus size={18} />
+              Add Expense
+            </Link>
+            {group?.isAdmin ? (
+              <Link href={`/groups/${groupId}/edit`} className="rounded-lg bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-300">
+                Settings
+              </Link>
+            ) : (
+              <Button variant="ghost" onClick={onLeave} disabled={!policy?.allowMemberRoleSelfLeave}>
+                Leave
+              </Button>
+            )}
+          </div>
+        </div>
+        <ModuleNav />
+      </header>
+
+      <section className="grid gap-5 md:grid-cols-3">
+        <Card>
+          <div className="flex items-center gap-2 text-gray-600">
+            <TrendingDown size={18} />
+            <h3 className="font-semibold">You Owe</h3>
+          </div>
+          <p className="mt-2 text-3xl font-bold text-red-600">{totalDebts.toFixed(2)}</p>
+          <div className="mt-3 space-y-2">
+            {userDebts.length === 0 ? (
+              <p className="text-sm text-gray-500">All settled</p>
+            ) : (
+              userDebts.map((row, idx) => (
+                <div key={idx} className="text-sm text-gray-600">
+                  <span className="font-medium">→ {memberMap.get(row.toUserId) || row.toUserId}</span>: {row.amount.toFixed(2)}
+                </div>
+              ))
+            )}
+          </div>
+        </Card>
+
+        <Card>
+          <div className="flex items-center gap-2 text-gray-600">
+            <TrendingUp size={18} />
+            <h3 className="font-semibold">You're Owed</h3>
+          </div>
+          <p className="mt-2 text-3xl font-bold text-green-600">{totalOwed.toFixed(2)}</p>
+          <div className="mt-3 space-y-2">
+            {userOwed.length === 0 ? (
+              <p className="text-sm text-gray-500">All settled</p>
+            ) : (
+              userOwed.map((row, idx) => (
+                <div key={idx} className="text-sm text-gray-600">
+                  <span className="font-medium">← {memberMap.get(row.fromUserId) || row.fromUserId}</span>: {row.amount.toFixed(2)}
+                </div>
+              ))
+            )}
+          </div>
+        </Card>
+
+        <Card>
+          <div className="flex items-center gap-2 text-gray-600">
+            <Wallet size={18} />
+            <h3 className="font-semibold">Members</h3>
+          </div>
+          <p className="mt-2 text-3xl font-bold text-gray-900">{members.length}</p>
+          <div className="mt-3 space-y-2">
+            {members.slice(0, 4).map((member) => (
+              <div key={member.id} className="text-sm text-gray-600">
+                <span className="font-medium">{member.displayName || member.email || member.userId}</span>
+                <span className="text-xs text-gray-500"> · {member.role}</span>
+              </div>
+            ))}
+            {members.length > 4 && (
+              <p className="text-xs text-gray-500">+{members.length - 4} more</p>
+            )}
+          </div>
+        </Card>
+      </section>
+
+      <Card>
+        <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+          <span>Expense History</span>
+          <span className="text-sm font-normal text-gray-500">({expenses.length})</span>
+        </h2>
+        <div className="space-y-2">
+          {expenses.length === 0 ? (
+            <p className="text-sm text-gray-500">No expenses yet</p>
+          ) : (
+            expenses.map((expense) => (
+              <div
+                key={expense._id}
+                className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm"
+              >
+                <div>
+                  <p className="font-semibold text-gray-900">{expense.title}</p>
+                  <p className="text-xs text-gray-500">
+                    Paid by {memberMap.get(expense.paidByUserId) || expense.paidByDisplayName || expense.paidByUserId} · {new Date(expense.expenseDate).toLocaleDateString()}
+                  </p>
+                </div>
+                <p className="font-semibold text-gray-900">{expense.totalAmount.toFixed(2)}</p>
+              </div>
+            ))
+          )}
+        </div>
+      </Card>
+
+      {error && (
+        <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>
+      )}
+    </main>
+  );
+};
