@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Bell, Check, CheckCheck, ArrowLeft } from "lucide-react";
+import { Bell, Check, CheckCheck, ArrowLeft, Trash2 } from "lucide-react";
 
 import { Button } from "@/frontend/shared/components/Button";
 import { Card } from "@/frontend/shared/components/Card";
 import { ModuleNav } from "@/frontend/shared/components/ModuleNav";
-import { apiGet, apiPost } from "@/frontend/shared/lib/api-client";
+import { apiGet, apiPost, apiDelete } from "@/frontend/shared/lib/api-client";
+import { useToast } from "@/frontend/shared/hooks/useToast";
+import { useDialog } from "@/frontend/shared/hooks/useDialog";
 
 type DashboardNotificationsPageProps = {
   user: {
@@ -49,10 +51,10 @@ const formatDateTime = (value: string) => {
 };
 
 export const DashboardNotificationsPage = ({ user }: DashboardNotificationsPageProps) => {
+  const toast = useToast();
+  const dialog = useDialog();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [busyNotificationId, setBusyNotificationId] = useState<string | null>(null);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
 
   const load = async () => {
     const result = await apiGet<Notification[]>("/api/notifications");
@@ -60,44 +62,77 @@ export const DashboardNotificationsPage = ({ user }: DashboardNotificationsPageP
   };
 
   useEffect(() => {
-    void load().catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load notifications"));
-  }, []);
+    void load().catch((e: unknown) => toast.error(e instanceof Error ? e.message : "Failed to load notifications"));
+  }, [toast]);
 
   const unreadCount = useMemo(() => notifications.filter((n) => !n.readAt).length, [notifications]);
 
   const markRead = async (notificationId: string) => {
     setBusyNotificationId(notificationId);
-    setError("");
     try {
       await apiPost(`/api/notifications/${notificationId}/read`, {});
+      toast.success("Marked as read.");
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to mark notification as read");
+      toast.error(e instanceof Error ? e.message : "Failed to mark notification as read");
     } finally {
       setBusyNotificationId(null);
     }
   };
 
+  const deleteNotification = async (notificationId: string) => {
+    setBusyNotificationId(notificationId);
+    try {
+      await apiPost(`/api/notifications/${notificationId}/delete`, {});
+      toast.success("Notification deleted.");
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to delete notification");
+    } finally {
+      setBusyNotificationId(null);
+    }
+  };
+
+  const clearAllNotifications = async () => {
+    await dialog.open({
+      title: "Clear All Notifications?",
+      description: "This action will delete all your notifications permanently.",
+      actions: [
+        {
+          label: "Clear",
+          onClick: async () => {
+            try {
+              await apiDelete("/api/notifications/clear");
+              toast.success("All notifications cleared.");
+              await load();
+            } catch (e) {
+              toast.error(e instanceof Error ? e.message : "Failed to clear notifications");
+            }
+          },
+          variant: "danger",
+        },
+      ],
+    });
+  };
+
   const acceptInvite = async (notification: Notification) => {
     const payload = notification.payload as InvitePayload;
     if (!payload.inviteId) {
-      setError("This invite notification is missing invite details.");
+      toast.error("This invite notification is missing invite details.");
       return;
     }
 
     setBusyNotificationId(notification._id);
-    setError("");
-    setMessage("");
 
     try {
       await apiPost(`/api/invites/${payload.inviteId}/accept`, {});
       if (!notification.readAt) {
         await apiPost(`/api/notifications/${notification._id}/read`, {});
       }
-      setMessage(`Invite accepted${payload.groupName ? ` for ${payload.groupName}` : ""}.`);
+      toast.success(`Invite accepted${payload.groupName ? ` for ${payload.groupName}` : ""}.`);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to accept invite");
+      toast.error(e instanceof Error ? e.message : "Failed to accept invite");
     } finally {
       setBusyNotificationId(null);
     }
@@ -107,23 +142,21 @@ export const DashboardNotificationsPage = ({ user }: DashboardNotificationsPageP
     const payload = notification.payload as SettlementPendingPayload;
 
     if (!payload.groupId || !payload.settlementId) {
-      setError("This settlement notification is missing details.");
+      toast.error("This settlement notification is missing details.");
       return;
     }
 
     setBusyNotificationId(notification._id);
-    setError("");
-    setMessage("");
 
     try {
       await apiPost(`/api/groups/${payload.groupId}/settlements/${payload.settlementId}/confirm-received`, {});
       if (!notification.readAt) {
         await apiPost(`/api/notifications/${notification._id}/read`, {});
       }
-      setMessage(`Payment confirmed${payload.groupName ? ` in ${payload.groupName}` : ""}.`);
+      toast.success(`Payment confirmed${payload.groupName ? ` in ${payload.groupName}` : ""}.`);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to confirm settlement");
+      toast.error(e instanceof Error ? e.message : "Failed to confirm settlement");
     } finally {
       setBusyNotificationId(null);
     }
@@ -133,23 +166,21 @@ export const DashboardNotificationsPage = ({ user }: DashboardNotificationsPageP
     const payload = notification.payload as SettlementPendingPayload;
 
     if (!payload.groupId || !payload.settlementId) {
-      setError("This settlement notification is missing details.");
+      toast.error("This settlement notification is missing details.");
       return;
     }
 
     setBusyNotificationId(notification._id);
-    setError("");
-    setMessage("");
 
     try {
       await apiPost(`/api/groups/${payload.groupId}/settlements/${payload.settlementId}/decline`, { reason: "Not received" });
       if (!notification.readAt) {
         await apiPost(`/api/notifications/${notification._id}/read`, {});
       }
-      setMessage(`Payment declined${payload.groupName ? ` in ${payload.groupName}` : ""}.`);
+      toast.success(`Payment declined${payload.groupName ? ` in ${payload.groupName}` : ""}.`);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to decline settlement");
+      toast.error(e instanceof Error ? e.message : "Failed to decline settlement");
     } finally {
       setBusyNotificationId(null);
     }
@@ -222,11 +253,19 @@ export const DashboardNotificationsPage = ({ user }: DashboardNotificationsPageP
       </header>
 
       <Card>
-        <div className="mb-4 flex items-center gap-2">
-          <Bell size={18} />
-          <h2 className="text-lg font-semibold">All Notifications</h2>
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Bell size={18} />
+            <h2 className="text-lg font-semibold">All Notifications</h2>
+          </div>
+          {notifications.length > 0 && (
+            <Button type="button" variant="ghost" onClick={clearAllNotifications}>
+              <Trash2 size={16} className="mr-1" />
+              Clear All
+            </Button>
+          )}
         </div>
-        <p className="mb-4 text-sm text-(--text-muted)">Unread: {unreadCount}</p>
+        <p className="mb-4 text-sm text-(--text-muted)">Unread: {unreadCount} · Total: {notifications.length}</p>
 
         <div className="space-y-3">
           {notifications.length === 0 && <p className="text-sm text-(--text-muted)">No notifications yet.</p>}
@@ -293,6 +332,10 @@ export const DashboardNotificationsPage = ({ user }: DashboardNotificationsPageP
                         </span>
                       </Button>
                     )}
+
+                    <Button type="button" variant="ghost" onClick={() => deleteNotification(notification._id)} disabled={isBusy}>
+                      <Trash2 size={14} />
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -300,13 +343,6 @@ export const DashboardNotificationsPage = ({ user }: DashboardNotificationsPageP
           })}
         </div>
       </Card>
-
-      {(message || error) && (
-        <div>
-          {message && <p className="rounded-xl bg-(--brand)/10 px-3 py-2 text-sm text-(--brand)">{message}</p>}
-          {error && <p className="rounded-xl bg-(--danger)/10 px-3 py-2 text-sm text-(--danger)">{error}</p>}
-        </div>
-      )}
     </main>
   );
 };

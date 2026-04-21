@@ -8,6 +8,8 @@ import { Card } from "@/frontend/shared/components/Card";
 import { TextField } from "@/frontend/shared/components/TextField";
 import { ModuleNav } from "@/frontend/shared/components/ModuleNav";
 import { apiGet, apiPost } from "@/frontend/shared/lib/api-client";
+import { useToast } from "@/frontend/shared/hooks/useToast";
+import { useDialog } from "@/frontend/shared/hooks/useDialog";
 
 type Group = { id: string; name: string; baseCurrency: string };
 
@@ -24,10 +26,10 @@ const parseKeyValueLines = (raw: string) =>
     .filter((x) => x.userId && !Number.isNaN(x.value));
 
 export const ExpensesPage = () => {
+  const toast = useToast();
+  const dialog = useDialog();
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState("");
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
 
   useEffect(() => {
     void apiGet<Group[]>("/api/groups")
@@ -35,17 +37,20 @@ export const ExpensesPage = () => {
         setGroups(result);
         if (result.length > 0) setSelectedGroupId(result[0].id);
       })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load groups"));
-  }, []);
+      .catch((e: unknown) => toast.error(e instanceof Error ? e.message : "Failed to load groups"));
+  }, [toast]);
 
   const onCreateExpense = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedGroupId) {
-      setError("Select a group first.");
+      toast.error("Select a group first.");
       return;
     }
 
     const form = new FormData(event.currentTarget);
+    const title = String(form.get("title") ?? "").trim();
+    const paidByUserId = String(form.get("paidByUserId") ?? "").trim();
+    const totalAmount = Number(form.get("totalAmount") ?? 0);
     const splitType = String(form.get("splitType") ?? "equal") as "equal" | "percentage" | "custom";
     const participants =
       splitType === "equal"
@@ -56,22 +61,32 @@ export const ExpensesPage = () => {
               : { userId: item.userId, shareAmount: item.value },
           );
 
-    setError("");
-
-    try {
-      await apiPost(`/api/groups/${selectedGroupId}/expenses`, {
-        title: String(form.get("title") ?? "").trim(),
-        paidByUserId: String(form.get("paidByUserId") ?? "").trim(),
-        totalAmount: Number(form.get("totalAmount") ?? 0),
-        splitType,
-        expenseDate: new Date().toISOString(),
-        participants,
-      });
-      setMessage("Expense created.");
-      event.currentTarget.reset();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create expense");
-    }
+    await dialog.open({
+      title: "Create Expense?",
+      description: `Create expense "${title}" for ${totalAmount} - paid by ${paidByUserId}?`,
+      actions: [
+        {
+          label: "Create",
+          onClick: async () => {
+            try {
+              await apiPost(`/api/groups/${selectedGroupId}/expenses`, {
+                title,
+                paidByUserId,
+                totalAmount,
+                splitType,
+                expenseDate: new Date().toISOString(),
+                participants,
+              });
+              toast.success("Expense created.");
+              event.currentTarget.reset();
+            } catch (e) {
+              toast.error(e instanceof Error ? e.message : "Failed to create expense");
+            }
+          },
+          variant: "primary",
+        },
+      ],
+    });
   };
 
   return (
@@ -121,13 +136,6 @@ export const ExpensesPage = () => {
           <Button type="submit" className="w-full">Create expense</Button>
         </form>
       </Card>
-
-      {(message || error) && (
-        <div>
-          {message && <p className="rounded-xl bg-(--brand)/10 px-3 py-2 text-sm text-(--brand)">{message}</p>}
-          {error && <p className="rounded-xl bg-(--danger)/10 px-3 py-2 text-sm text-(--danger)">{error}</p>}
-        </div>
-      )}
     </main>
   );
 };

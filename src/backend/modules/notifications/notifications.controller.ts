@@ -30,4 +30,26 @@ export class NotificationsController {
       return fail("Internal server error", 500);
     }
   }
+
+  async delete(request: NextRequest, notificationId: string) {
+    try {
+      await connectDatabase();
+      const userId = getUserIdFromRequest(request);
+      return ok(await this.notificationsService.delete(userId, notificationId));
+    } catch (error) {
+      if (error instanceof ApiError) return fail(error.message, error.statusCode);
+      return fail("Internal server error", 500);
+    }
+  }
+
+  async deleteAll(request: NextRequest) {
+    try {
+      await connectDatabase();
+      const userId = getUserIdFromRequest(request);
+      return ok(await this.notificationsService.deleteAll(userId));
+    } catch (error) {
+      if (error instanceof ApiError) return fail(error.message, error.statusCode);
+      return fail("Internal server error", 500);
+    }
+  }
 }
