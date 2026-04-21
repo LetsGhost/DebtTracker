@@ -22,7 +22,6 @@ type InvitePayload = {
   inviteId?: string;
   groupId?: string;
   groupName?: string;
-  invitedByUserId?: string;
   invitedByDisplayName?: string;
   invitedByEmail?: string;
   message?: string | null;
@@ -32,7 +31,6 @@ type DebtDuePayload = {
   groupId?: string;
   groupName?: string;
   toUserDisplayName?: string;
-  toUserId?: string;
   amount?: number;
 };
 
@@ -41,7 +39,6 @@ type SettlementPendingPayload = {
   groupId?: string;
   groupName?: string;
   fromUserDisplayName?: string;
-  fromUserId?: string;
   amount?: number;
 };
 
@@ -185,7 +182,7 @@ export const DashboardNotificationsPage = ({ user }: DashboardNotificationsPageP
   const renderSubtitle = (notification: Notification) => {
     if (notification.type === "invite") {
       const payload = notification.payload as InvitePayload;
-      const invitedBy = payload.invitedByDisplayName ?? payload.invitedByUserId ?? "someone";
+      const invitedBy = payload.invitedByDisplayName ?? payload.invitedByEmail ?? "someone";
       const inviterEmail = payload.invitedByEmail ? ` (${payload.invitedByEmail})` : "";
       const inviteMessage = payload.message ? ` · ${payload.message}` : "";
       return `From ${invitedBy}${inviterEmail}${inviteMessage}`;
@@ -193,14 +190,14 @@ export const DashboardNotificationsPage = ({ user }: DashboardNotificationsPageP
 
     if (notification.type === "debt_due") {
       const payload = notification.payload as DebtDuePayload;
-      const toUser = payload.toUserDisplayName ?? payload.toUserId ?? "someone";
+      const toUser = payload.toUserDisplayName ?? "someone";
       const groupName = payload.groupName ?? "group";
       return `Pay ${toUser} in ${groupName}`;
     }
 
     if (notification.type === "settlement_pending") {
       const payload = notification.payload as SettlementPendingPayload;
-      const fromUser = payload.fromUserDisplayName ?? payload.fromUserId ?? "someone";
+      const fromUser = payload.fromUserDisplayName ?? "someone";
       const groupName = payload.groupName ?? "group";
       return `${fromUser} marked a debt as paid in ${groupName}`;
     }

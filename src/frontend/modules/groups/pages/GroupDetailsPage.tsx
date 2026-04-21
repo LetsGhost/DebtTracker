@@ -68,6 +68,7 @@ export const GroupDetailsPage = ({ groupId, userId }: GroupDetailsPageProps) => 
   const [members, setMembers] = useState<Member[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [pendingDebtActions, setPendingDebtActions] = useState<string[]>([]);
+  const [paymentDrafts, setPaymentDrafts] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
 
   const load = async () => {
@@ -91,7 +92,7 @@ export const GroupDetailsPage = ({ groupId, userId }: GroupDetailsPageProps) => 
 
   const memberMap = useMemo(() => {
     const map = new Map<string, string>();
-    members.forEach((m) => map.set(m.userId, m.displayName || m.email || m.userId));
+    members.forEach((m) => map.set(m.userId, m.displayName || m.email || "Unknown member"));
     return map;
   }, [members]);
 
@@ -115,6 +116,27 @@ export const GroupDetailsPage = ({ groupId, userId }: GroupDetailsPageProps) => 
     return keys;
   }, [settlements, userId]);
 
+  useEffect(() => {
+    setPaymentDrafts((current) => {
+      const next = { ...current };
+      const activeToUserIds = new Set(userDebts.map((row) => row.toUserId));
+
+      userDebts.forEach((row) => {
+        if (!next[row.toUserId]) {
+          next[row.toUserId] = row.amount.toFixed(2);
+        }
+      });
+
+      Object.keys(next).forEach((toUserId) => {
+        if (!activeToUserIds.has(toUserId)) {
+          delete next[toUserId];
+        }
+      });
+
+      return next;
+    });
+  }, [userDebts]);
+
   const confirmedSettlements = useMemo(() => {
     return settlements
       .filter((settlement) => settlement.status === "confirmed")
@@ -124,6 +146,17 @@ export const GroupDetailsPage = ({ groupId, userId }: GroupDetailsPageProps) => 
         return new Date(bDate).getTime() - new Date(aDate).getTime();
       });
   }, [settlements]);
+
+  const pendingAmountByReceiver = useMemo(() => {
+    const map = new Map<string, number>();
+    settlements
+      .filter((s) => s.status === "pending_receiver" && s.fromUserId === userId)
+      .forEach((s) => {
+        const current = map.get(s.toUserId) ?? 0;
+        map.set(s.toUserId, Number((current + s.amount).toFixed(2)));
+      });
+    return map;
+  }, [settlements, userId]);
 
   const markDebtAsPaid = async (toUserId: string, amount: number) => {
     const actionKey = `${toUserId}:${amount.toFixed(2)}`;
@@ -141,6 +174,23 @@ export const GroupDetailsPage = ({ groupId, userId }: GroupDetailsPageProps) => 
     } finally {
       setPendingDebtActions((current) => current.filter((item) => item !== actionKey));
     }
+  };
+
+  const submitDebtPayment = async (toUserId: string, maxAmount: number) => {
+    const rawAmount = paymentDrafts[toUserId] ?? maxAmount.toFixed(2);
+    const parsedAmount = Number(rawAmount);
+
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      setError("Please enter a valid payment amount.");
+      return;
+    }
+
+    if (parsedAmount - maxAmount > 0.001) {
+      setError("Payment amount cannot be greater than your current debt.");
+      return;
+    }
+
+    await markDebtAsPaid(toUserId, Number(parsedAmount.toFixed(2)));
   };
 
   const onLeave = async () => {
@@ -202,21 +252,12 @@ export const GroupDetailsPage = ({ groupId, userId }: GroupDetailsPageProps) => 
             ) : (
               userDebts.map((row, idx) => (
                 <div key={idx} className="text-sm text-gray-600">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-200 bg-gray-50 p-2">
                     <span>
-                      <span className="font-medium">→ {memberMap.get(row.toUserId) || row.toUserId}</span>: {row.amount.toFixed(2)}
+                      <span className="font-medium">→ {memberMap.get(row.toUserId) || "Unknown member"}</span>: {row.amount.toFixed(2)}
                     </span>
-                    {pendingSettlementKeys.has(`${row.toUserId}:${row.amount.toFixed(2)}`) ? (
-                      <span className="rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">Pending confirmation</span>
-                    ) : (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() => markDebtAsPaid(row.toUserId, row.amount)}
-                        disabled={pendingDebtActions.includes(`${row.toUserId}:${row.amount.toFixed(2)}`)}
-                      >
-                        I have paid
-                      </Button>
+                    {pendingSettlementKeys.has(`${row.toUserId}:${row.amount.toFixed(2)}`) && (
+                      <span className="rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">Pending full confirmation</span>
                     )}
                   </div>
                 </div>
@@ -237,7 +278,7 @@ export const GroupDetailsPage = ({ groupId, userId }: GroupDetailsPageProps) => 
             ) : (
               userOwed.map((row, idx) => (
                 <div key={idx} className="text-sm text-gray-600">
-                  <span className="font-medium">← {memberMap.get(row.fromUserId) || row.fromUserId}</span>: {row.amount.toFixed(2)}
+                  <span className="font-medium">← {memberMap.get(row.fromUserId) || "Unknown member"}</span>: {row.amount.toFixed(2)}
                 </div>
               ))
             )}
@@ -253,7 +294,7 @@ export const GroupDetailsPage = ({ groupId, userId }: GroupDetailsPageProps) => 
           <div className="mt-3 space-y-2">
             {members.slice(0, 4).map((member) => (
               <div key={member.id} className="text-sm text-gray-600">
-                <span className="font-medium">{member.displayName || member.email || member.userId}</span>
+                <span className="font-medium">{member.displayName || member.email || "Unknown member"}</span>
                 <span className="text-xs text-gray-500"> · {member.role}</span>
               </div>
             ))}
@@ -263,6 +304,61 @@ export const GroupDetailsPage = ({ groupId, userId }: GroupDetailsPageProps) => 
           </div>
         </Card>
       </section>
+
+      <Card>
+        <h2 className="mb-4 text-lg font-semibold">My current debts</h2>
+        <div className="space-y-3">
+          {userDebts.length === 0 ? (
+            <p className="text-sm text-gray-500">No open debts in this group.</p>
+          ) : (
+            userDebts.map((row) => {
+              const actionKey = `${row.toUserId}:${(Number(paymentDrafts[row.toUserId] ?? row.amount.toFixed(2)) || 0).toFixed(2)}`;
+              const pendingAmount = pendingAmountByReceiver.get(row.toUserId) ?? 0;
+
+              return (
+                <div key={row.toUserId} className="rounded-xl border border-gray-200 bg-white p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm text-gray-700">
+                      You owe <span className="font-semibold">{memberMap.get(row.toUserId) || "Unknown member"}</span>
+                    </p>
+                    <p className="text-sm font-semibold text-gray-900">Open: {row.amount.toFixed(2)}</p>
+                  </div>
+
+                  {pendingAmount > 0 && (
+                    <p className="mt-2 text-xs font-semibold text-amber-700">Pending confirmation: {pendingAmount.toFixed(2)}</p>
+                  )}
+
+                  <div className="mt-3 flex flex-col gap-2 md:flex-row md:items-center">
+                    <input
+                      type="number"
+                      min="0.01"
+                      max={row.amount.toFixed(2)}
+                      step="0.01"
+                      value={paymentDrafts[row.toUserId] ?? row.amount.toFixed(2)}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        setPaymentDrafts((current) => ({
+                          ...current,
+                          [row.toUserId]: value,
+                        }));
+                      }}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none ring-blue-300 focus:ring md:w-48"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => void submitDebtPayment(row.toUserId, row.amount)}
+                      disabled={pendingDebtActions.includes(actionKey)}
+                    >
+                      I have paid this amount
+                    </Button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </Card>
 
       <Card>
         <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
@@ -282,7 +378,7 @@ export const GroupDetailsPage = ({ groupId, userId }: GroupDetailsPageProps) => 
                   <p className="font-semibold text-gray-900">{expense.title}</p>
                   {expense.note && <p className="text-xs text-gray-500">{expense.note}</p>}
                   <p className="text-xs text-gray-500">
-                    Paid by {memberMap.get(expense.paidByUserId) || expense.paidByDisplayName || expense.paidByUserId} · {formatDate(expense.expenseDate)}
+                    Paid by {memberMap.get(expense.paidByUserId) || expense.paidByDisplayName || "Unknown member"} · {formatDate(expense.expenseDate)}
                   </p>
                 </div>
                 <p className="font-semibold text-gray-900">{expense.totalAmount.toFixed(2)}</p>
@@ -305,7 +401,7 @@ export const GroupDetailsPage = ({ groupId, userId }: GroupDetailsPageProps) => 
               <div key={settlement._id} className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm">
                 <div>
                   <p className="font-semibold text-gray-900">
-                    {memberMap.get(settlement.fromUserId) || settlement.fromUserId} paid {memberMap.get(settlement.toUserId) || settlement.toUserId}
+                    {memberMap.get(settlement.fromUserId) || "Unknown member"} paid {memberMap.get(settlement.toUserId) || "Unknown member"}
                   </p>
                   <p className="text-xs text-gray-500">{formatDate(settlement.receiverDecisionAt ?? settlement.createdAt ?? "")}</p>
                 </div>

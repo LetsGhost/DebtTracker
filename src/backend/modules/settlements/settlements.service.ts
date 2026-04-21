@@ -3,6 +3,7 @@ import { getEventBus } from "@/backend/common/events/event-bus";
 import { DebtLedgerEntryModel } from "@/backend/modules/expenses/debt-ledger.entity";
 import { getMemberContext } from "@/backend/modules/groups/groups.permissions";
 import { SettlementModel } from "@/backend/modules/settlements/settlement.entity";
+import { UserModel } from "@/backend/modules/users/users.entity";
 
 export class SettlementsService {
   async create(groupId: string, actorUserId: string, toUserId: string, amount: number) {
@@ -31,12 +32,38 @@ export class SettlementsService {
   async list(groupId: string, actorUserId: string) {
     await getMemberContext(groupId, actorUserId);
 
-    return SettlementModel.find({
+    const settlements = await SettlementModel.find({
       groupId,
       $or: [{ fromUserId: actorUserId }, { toUserId: actorUserId }],
     })
       .sort({ createdAt: -1 })
       .lean();
+
+    const userIds = Array.from(
+      new Set(
+        settlements
+          .flatMap((settlement: any) => [settlement.fromUserId, settlement.toUserId])
+          .filter((userId: string) => Boolean(userId)),
+      ),
+    );
+
+    const users = await UserModel.find({ _id: { $in: userIds } }).lean();
+    const userMap = new Map<string, { displayName: string; email: string }>(
+      users.map((user: any) => [String(user._id), { displayName: user.displayName as string, email: user.email as string }]),
+    );
+
+    return settlements.map((settlement: any) => {
+      const fromUser = userMap.get(settlement.fromUserId);
+      const toUser = userMap.get(settlement.toUserId);
+
+      return {
+        ...settlement,
+        fromUserDisplayName: fromUser?.displayName ?? "",
+        fromUserEmail: fromUser?.email ?? "",
+        toUserDisplayName: toUser?.displayName ?? "",
+        toUserEmail: toUser?.email ?? "",
+      };
+    });
   }
 
   async confirmReceived(settlementId: string, actorUserId: string) {

@@ -5,6 +5,7 @@ import { ExpenseParticipantModel } from "@/backend/modules/expenses/expense-part
 import { ExpenseModel } from "@/backend/modules/expenses/expense.entity";
 import { canAddExpense, getMemberContext } from "@/backend/modules/groups/groups.permissions";
 import { SplitType } from "@/backend/modules/groups/groups.types";
+import { UserModel } from "@/backend/modules/users/users.entity";
 
 type ParticipantInput = {
   userId: string;
@@ -138,13 +139,30 @@ export class ExpensesService {
 
     const expenses = await ExpenseModel.find({ groupId }).sort({ expenseDate: -1 }).lean();
 
+    const userIds = Array.from(
+      new Set(expenses.map((expense: any) => expense.paidByUserId).filter((id: string) => Boolean(id))),
+    );
+    const users = await UserModel.find({ _id: { $in: userIds } }).lean();
+    const userMap = new Map<string, { displayName: string; email: string }>(
+      users.map((user: any) => [String(user._id), { displayName: user.displayName as string, email: user.email as string }]),
+    );
+
+    const withDisplayNames = expenses.map((expense: any) => {
+      const paidByUser = userMap.get(expense.paidByUserId);
+      return {
+        ...expense,
+        paidByDisplayName: paidByUser?.displayName ?? "",
+        paidByEmail: paidByUser?.email ?? "",
+      };
+    });
+
     if (context.policy.visibilityMode === "transparent" || context.member.role === "admin") {
-      return expenses;
+      return withDisplayNames;
     }
 
     const participantExpenseIds = await ExpenseParticipantModel.find({ userId: actorUserId }).lean();
     const allowedIds = new Set(participantExpenseIds.map((x: { expenseId: string }) => x.expenseId));
 
-    return expenses.filter((expense: { _id: string }) => allowedIds.has(String(expense._id)));
+    return withDisplayNames.filter((expense: { _id: string }) => allowedIds.has(String(expense._id)));
   }
 }

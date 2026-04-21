@@ -14,8 +14,19 @@ type Settlement = {
   _id: string;
   fromUserId: string;
   toUserId: string;
+  fromUserDisplayName?: string;
+  fromUserEmail?: string;
+  toUserDisplayName?: string;
+  toUserEmail?: string;
   amount: number;
   status: "pending_receiver" | "confirmed" | "declined";
+};
+
+type Member = {
+  id: string;
+  userId: string;
+  displayName: string;
+  email: string;
 };
 
 type SettlementsPageProps = {
@@ -25,6 +36,8 @@ type SettlementsPageProps = {
 export const SettlementsPage = ({ userId }: SettlementsPageProps) => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState("");
+  const [selectedReceiverId, setSelectedReceiverId] = useState("");
+  const [members, setMembers] = useState<Member[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -47,9 +60,14 @@ export const SettlementsPage = ({ userId }: SettlementsPageProps) => {
 
   useEffect(() => {
     if (!selectedGroupId) return;
-    void refreshSettlements(selectedGroupId).catch((e: unknown) =>
-      setError(e instanceof Error ? e.message : "Failed to load settlements"),
-    );
+    void Promise.all([
+      refreshSettlements(selectedGroupId),
+      apiGet<Member[]>(`/api/groups/${selectedGroupId}/members`).then((result) => {
+        setMembers(result);
+        const firstOtherMember = result.find((member) => member.userId !== userId);
+        setSelectedReceiverId(firstOtherMember?.userId ?? "");
+      }),
+    ]).catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load settlements"));
   }, [selectedGroupId]);
 
   const onCreateSettlement = async (event: FormEvent<HTMLFormElement>) => {
@@ -60,8 +78,13 @@ export const SettlementsPage = ({ userId }: SettlementsPageProps) => {
     setError("");
 
     try {
+      if (!selectedReceiverId) {
+        setError("Please select a receiver.");
+        return;
+      }
+
       await apiPost(`/api/groups/${selectedGroupId}/settlements`, {
-        toUserId: String(form.get("toUserId") ?? "").trim(),
+        toUserId: selectedReceiverId,
         amount: Number(form.get("amount") ?? 0),
       });
       await refreshSettlements(selectedGroupId);
@@ -111,7 +134,24 @@ export const SettlementsPage = ({ userId }: SettlementsPageProps) => {
             </select>
           </div>
           <form className="space-y-3" onSubmit={onCreateSettlement}>
-            <TextField name="toUserId" label="Receiver user id" placeholder="user-id" required />
+            <label className="text-sm font-medium">
+              Receiver
+              <select
+                value={selectedReceiverId}
+                onChange={(event) => setSelectedReceiverId(event.target.value)}
+                className="mt-1 w-full rounded-xl border border-black/15 bg-white px-3 py-2 text-sm"
+                required
+              >
+                {members
+                  .filter((member) => member.userId !== userId)
+                  .map((member) => (
+                    <option key={member.id} value={member.userId}>
+                      {member.displayName || member.email || "Unknown member"}
+                      {member.email ? ` (${member.email})` : ""}
+                    </option>
+                  ))}
+              </select>
+            </label>
             <TextField name="amount" label="Amount" type="number" step="0.01" required />
             <Button type="submit" className="w-full">Create settlement request</Button>
           </form>
@@ -124,7 +164,10 @@ export const SettlementsPage = ({ userId }: SettlementsPageProps) => {
             {pendingForMe.length === 0 && <p className="text-sm text-(--text-muted)">No pending confirmations.</p>}
             {pendingForMe.map((item) => (
               <div key={item._id} className="rounded-xl border border-black/10 bg-white p-3 text-sm">
-                <p><strong>{item.fromUserId}</strong> says they sent <strong>{item.amount.toFixed(2)}</strong></p>
+                <p>
+                  <strong>{item.fromUserDisplayName || item.fromUserEmail || "A group member"}</strong>
+                  {item.fromUserEmail ? ` (${item.fromUserEmail})` : ""} says they sent <strong>{item.amount.toFixed(2)}</strong>
+                </p>
                 <div className="mt-3 flex gap-2">
                   <Button onClick={() => onSettlementAction(item._id, "confirm")}>Confirm</Button>
                   <Button variant="ghost" onClick={() => onSettlementAction(item._id, "decline")}>Decline</Button>

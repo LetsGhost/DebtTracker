@@ -10,8 +10,22 @@ import { ModuleNav } from "@/frontend/shared/components/ModuleNav";
 import { apiDelete, apiGet, apiPatch, apiPost } from "@/frontend/shared/lib/api-client";
 
 type Group = { id: string; name: string; baseCurrency: string };
-type GroupMember = { id: string; userId: string; role: "admin" | "moderator" | "editor" | "viewer"; addedByUserId: string };
-type GroupInvite = { _id: string; invitedUserId: string; invitedByUserId: string; status: "pending" | "accepted" | "rejected" | "revoked" | "expired" };
+type GroupMember = {
+  id: string;
+  userId: string;
+  displayName?: string;
+  email?: string;
+  role: "admin" | "moderator" | "editor" | "viewer";
+  addedByUserId: string;
+};
+type GroupInvite = {
+  _id: string;
+  invitedUserId: string;
+  invitedByUserId: string;
+  invitedUserDisplayName?: string;
+  invitedUserEmail?: string;
+  status: "pending" | "accepted" | "rejected" | "revoked" | "expired";
+};
 type GroupPolicy = {
   canMembersInvite: boolean;
   canEditorsAddExpense: boolean;
@@ -29,6 +43,9 @@ export const GroupsPage = () => {
   const [policy, setPolicy] = useState<GroupPolicy | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const memberNameMap = new Map<string, string>(
+    members.map((member) => [member.userId, member.displayName || member.email || "Unknown member"]),
+  );
 
   const refreshGroups = async () => {
     const result = await apiGet<Group[]>("/api/groups");
@@ -207,7 +224,10 @@ export const GroupsPage = () => {
             <p className="text-sm font-semibold">Pending invites</p>
             {invites.filter((x) => x.status === "pending").map((invite) => (
               <div key={invite._id} className="rounded-xl border border-black/10 bg-white p-3 text-sm">
-                <p><strong>{invite.invitedUserId}</strong></p>
+                <p>
+                  <strong>{invite.invitedUserDisplayName || invite.invitedUserEmail || "Invited user"}</strong>
+                  {invite.invitedUserEmail ? ` (${invite.invitedUserEmail})` : ""}
+                </p>
                 <Button className="mt-2" variant="ghost" onClick={() => onRevokeInvite(invite._id)}>Revoke</Button>
               </div>
             ))}
@@ -241,8 +261,9 @@ export const GroupsPage = () => {
           <div className="grid gap-3 md:grid-cols-2">
             {members.map((member) => (
               <div key={member.id} className="rounded-xl border border-black/10 bg-white p-3 text-sm">
-                <p><strong>{member.userId}</strong></p>
-                <p className="text-xs text-(--text-muted)">added by {member.addedByUserId}</p>
+                <p><strong>{member.displayName || member.email || "Unknown member"}</strong></p>
+                <p className="text-xs text-(--text-muted)">{member.email || ""}</p>
+                <p className="text-xs text-(--text-muted)">added by {memberNameMap.get(member.addedByUserId) || "group admin"}</p>
                 <div className="mt-3 flex items-center gap-2">
                   <select value={member.role} onChange={(e) => onRoleChange(member.userId, e.target.value as GroupMember["role"])} className="rounded-md border border-black/15 bg-white px-2 py-1">
                     <option value="admin">admin</option>

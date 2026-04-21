@@ -27,6 +27,8 @@ type GroupPolicy = {
 type GroupMember = {
   id: string;
   userId: string;
+  displayName?: string;
+  email?: string;
   role: "admin" | "moderator" | "editor" | "viewer";
   addedByUserId: string;
 };
@@ -35,6 +37,8 @@ type GroupInvite = {
   _id: string;
   invitedUserId: string;
   invitedByUserId: string;
+  invitedUserDisplayName?: string;
+  invitedUserEmail?: string;
   status: "pending" | "accepted" | "rejected" | "revoked" | "expired";
 };
 
@@ -42,6 +46,10 @@ type Settlement = {
   _id: string;
   fromUserId: string;
   toUserId: string;
+  fromUserDisplayName?: string;
+  fromUserEmail?: string;
+  toUserDisplayName?: string;
+  toUserEmail?: string;
   amount: number;
   status: "pending_receiver" | "confirmed" | "declined";
 };
@@ -335,6 +343,13 @@ export const WorkflowPanels = ({ userId }: WorkflowPanelsProps) => {
   };
 
   const pendingForMe = settlements.filter((entry) => entry.status === "pending_receiver" && entry.toUserId === userId);
+  const memberNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    members.forEach((member) => {
+      map.set(member.userId, member.displayName || member.email || "Unknown member");
+    });
+    return map;
+  }, [members]);
 
   return (
     <section className="grid gap-5 lg:grid-cols-3">
@@ -455,7 +470,8 @@ export const WorkflowPanels = ({ userId }: WorkflowPanelsProps) => {
             .map((invite) => (
               <div key={invite._id} className="rounded-xl border border-black/10 bg-white p-3 text-sm">
                 <p>
-                  <strong>{invite.invitedUserId}</strong> invited by {invite.invitedByUserId}
+                  <strong>{invite.invitedUserDisplayName || invite.invitedUserEmail || "Invited user"}</strong>
+                  {invite.invitedUserEmail ? ` (${invite.invitedUserEmail})` : ""} invited by {memberNameMap.get(invite.invitedByUserId) || "a group admin"}
                 </p>
                 <Button className="mt-2" variant="ghost" onClick={() => onRevokeInvite(invite._id)}>
                   Revoke
@@ -521,9 +537,10 @@ export const WorkflowPanels = ({ userId }: WorkflowPanelsProps) => {
           {members.map((member) => (
             <div key={member.id} className="rounded-xl border border-black/10 bg-white p-3 text-sm">
               <p>
-                <strong>{member.userId}</strong>
+                <strong>{member.displayName || member.email || "Unknown member"}</strong>
               </p>
-              <p className="text-xs text-(--text-muted)">added by {member.addedByUserId}</p>
+              {member.email && <p className="text-xs text-(--text-muted)">{member.email}</p>}
+              <p className="text-xs text-(--text-muted)">added by {memberNameMap.get(member.addedByUserId) || "group admin"}</p>
 
               <div className="mt-3 flex items-center gap-2">
                 <select
@@ -566,7 +583,8 @@ export const WorkflowPanels = ({ userId }: WorkflowPanelsProps) => {
           {pendingForMe.map((item) => (
             <div key={item._id} className="rounded-xl border border-black/10 bg-white p-3 text-sm">
               <p>
-                <strong>{item.fromUserId}</strong> says they sent <strong>{item.amount.toFixed(2)}</strong>
+                <strong>{item.fromUserDisplayName || item.fromUserEmail || "A group member"}</strong>
+                {item.fromUserEmail ? ` (${item.fromUserEmail})` : ""} says they sent <strong>{item.amount.toFixed(2)}</strong>
               </p>
               <div className="mt-3 flex gap-2">
                 <Button onClick={() => onSettlementAction(item._id, "confirm")}>

@@ -17,11 +17,24 @@ type DashboardTimelinePageProps = {
 };
 
 type Group = { id: string; name: string; baseCurrency: string };
-type Expense = { _id: string; title: string; totalAmount: number; paidByUserId: string; expenseDate: string; groupId: string };
+type Expense = {
+  _id: string;
+  title: string;
+  totalAmount: number;
+  paidByUserId: string;
+  paidByDisplayName?: string;
+  paidByEmail?: string;
+  expenseDate: string;
+  groupId: string;
+};
 type Settlement = {
   _id: string;
   fromUserId: string;
   toUserId: string;
+  fromUserDisplayName?: string;
+  fromUserEmail?: string;
+  toUserDisplayName?: string;
+  toUserEmail?: string;
   amount: number;
   status: "pending_receiver" | "confirmed" | "declined";
   groupId: string;
@@ -31,18 +44,15 @@ type Notification = { _id: string; type: string; payload: Record<string, unknown
 type InvitePayload = {
   groupName?: string;
   invitedByDisplayName?: string;
-  invitedByUserId?: string;
 };
 type DebtDuePayload = {
   groupName?: string;
   toUserDisplayName?: string;
-  toUserId?: string;
   amount?: number;
 };
 type SettlementPendingPayload = {
   groupName?: string;
   fromUserDisplayName?: string;
-  fromUserId?: string;
   amount?: number;
 };
 
@@ -86,7 +96,7 @@ export const DashboardTimelinePage = ({ user }: DashboardTimelinePageProps) => {
               subtitle:
                 expense.paidByUserId === user.id
                   ? "You paid upfront"
-                  : `Paid by ${expense.paidByUserId}`,
+                  : `Paid by ${expense.paidByDisplayName || expense.paidByEmail || "a group member"}`,
             }));
 
             const settlementItems: TimelineItem[] = settlements.map((settlement) => ({
@@ -98,8 +108,8 @@ export const DashboardTimelinePage = ({ user }: DashboardTimelinePageProps) => {
               date: settlement.createdAt ?? new Date().toISOString(),
               subtitle:
                 settlement.toUserId === user.id
-                  ? `Incoming from ${settlement.fromUserId} (${settlement.status})`
-                  : `To ${settlement.toUserId} (${settlement.status})`,
+                  ? `Incoming from ${settlement.fromUserDisplayName || settlement.fromUserEmail || "a group member"} (${settlement.status})`
+                  : `To ${settlement.toUserDisplayName || settlement.toUserEmail || "a group member"} (${settlement.status})`,
             }));
 
             return [...expenseItems, ...settlementItems];
@@ -123,20 +133,20 @@ export const DashboardTimelinePage = ({ user }: DashboardTimelinePageProps) => {
     if (notification.type === "invite") {
       const payload = notification.payload as InvitePayload;
       const groupName = payload.groupName ?? "a group";
-      const invitedBy = payload.invitedByDisplayName ?? payload.invitedByUserId ?? "someone";
+      const invitedBy = payload.invitedByDisplayName ?? "someone";
       return `Invite to ${groupName} from ${invitedBy}`;
     }
 
     if (notification.type === "debt_due") {
       const payload = notification.payload as DebtDuePayload;
-      const creditor = payload.toUserDisplayName ?? payload.toUserId ?? "someone";
+      const creditor = payload.toUserDisplayName ?? "someone";
       const amount = typeof payload.amount === "number" ? payload.amount.toFixed(2) : "0.00";
       return `Debt due: ${amount} to ${creditor}`;
     }
 
     if (notification.type === "settlement_pending") {
       const payload = notification.payload as SettlementPendingPayload;
-      const fromUser = payload.fromUserDisplayName ?? payload.fromUserId ?? "someone";
+      const fromUser = payload.fromUserDisplayName ?? "someone";
       return `Payment confirmation needed from ${fromUser}`;
     }
 
