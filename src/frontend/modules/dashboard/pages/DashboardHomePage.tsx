@@ -1,4 +1,4 @@
-import { BarChart3, Coins, HandCoins, Users } from "lucide-react";
+import { BarChart3, Coins, HandCoins, LogOut, Users } from "lucide-react";
 import Link from "next/link";
 
 import { Card } from "@/frontend/shared/components/Card";
@@ -20,8 +20,9 @@ export const DashboardHomePage = ({ user }: DashboardHomePageProps) => (
           <p className="text-sm text-(--text-muted)">{user.email}</p>
         </div>
         <form action="/api/auth/logout" method="post">
-          <button className="rounded-xl bg-black/10 px-4 py-2 text-sm font-semibold hover:bg-black/15" type="submit">
-            Logout
+          <button className="inline-flex items-center gap-2 rounded-xl bg-black/10 px-3 py-2 text-sm font-semibold hover:bg-black/15 sm:px-4" type="submit">
+            <LogOut size={16} />
+            <span className="hidden sm:inline">Logout</span>
           </button>
         </form>
       </div>

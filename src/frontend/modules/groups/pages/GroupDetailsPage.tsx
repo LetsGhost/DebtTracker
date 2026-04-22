@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Plus, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { LogOut, Plus, Settings, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 
 import { Button } from "@/frontend/shared/components/Button";
 import { Card } from "@/frontend/shared/components/Card";
@@ -220,18 +220,25 @@ export const GroupDetailsPage = ({ groupId, userId }: GroupDetailsPageProps) => 
           <div className="flex gap-2">
             <Link
               href={`/groups/${groupId}/expenses/new`}
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-600"
+              aria-label="Add Expense"
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-500 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-600 sm:px-4"
             >
               <Plus size={18} />
-              Add Expense
+              <span className="hidden sm:inline">Add Expense</span>
             </Link>
             {group?.isAdmin ? (
-              <Link href={`/groups/${groupId}/edit`} className="rounded-lg bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-300">
-                Settings
+              <Link
+                href={`/groups/${groupId}/edit`}
+                aria-label="Settings"
+                className="inline-flex items-center gap-2 rounded-lg bg-gray-200 px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-300 sm:px-4"
+              >
+                <Settings size={18} />
+                <span className="hidden sm:inline">Settings</span>
               </Link>
             ) : group ? (
-              <Button variant="ghost" onClick={onLeave} disabled={leaveDisabled}>
-                Leave
+              <Button variant="ghost" onClick={onLeave} disabled={leaveDisabled} aria-label="Leave group" className="px-3 sm:px-4">
+                <LogOut size={18} />
+                <span className="hidden sm:inline">Leave</span>
               </Button>
             ) : null}
           </div>

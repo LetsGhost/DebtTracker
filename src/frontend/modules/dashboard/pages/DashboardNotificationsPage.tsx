@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Bell, Check, CheckCheck, ArrowLeft, Trash2 } from "lucide-react";
+import { Bell, Check, CheckCheck, ArrowLeft, ArrowRight, Trash2, XCircle } from "lucide-react";
 
 import { Button } from "@/frontend/shared/components/Button";
 import { Card } from "@/frontend/shared/components/Card";
@@ -259,9 +259,9 @@ export const DashboardNotificationsPage = ({ user }: DashboardNotificationsPageP
             <h2 className="text-lg font-semibold">All Notifications</h2>
           </div>
           {notifications.length > 0 && (
-            <Button type="button" variant="ghost" onClick={clearAllNotifications}>
+            <Button type="button" variant="ghost" onClick={clearAllNotifications} className="px-3 sm:px-4">
               <Trash2 size={16} className="mr-1" />
-              Clear All
+              <span className="hidden sm:inline">Clear All</span>
             </Button>
           )}
         </div>
@@ -293,10 +293,10 @@ export const DashboardNotificationsPage = ({ user }: DashboardNotificationsPageP
 
                   <div className="flex flex-wrap gap-2">
                     {isInvite && (
-                      <Button type="button" onClick={() => acceptInvite(notification)} disabled={isBusy}>
+                      <Button type="button" onClick={() => acceptInvite(notification)} disabled={isBusy} className="px-3 sm:px-4">
                         <span className="inline-flex items-center gap-1">
                           <Check size={14} />
-                          Accept Invite
+                          <span className="hidden sm:inline">Accept Invite</span>
                         </span>
                       </Button>
                     )}
@@ -306,34 +306,38 @@ export const DashboardNotificationsPage = ({ user }: DashboardNotificationsPageP
                         href={`/groups/${debtPayload.groupId}`}
                         className="inline-flex items-center gap-1 rounded-xl bg-blue-500 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-600"
                       >
-                        Open debt in group
+                        <ArrowRight size={14} />
+                        <span className="hidden sm:inline">Open debt in group</span>
                       </Link>
                     )}
 
                     {isSettlementPending && (
                       <>
-                        <Button type="button" onClick={() => confirmSettlement(notification)} disabled={isBusy}>
+                        <Button type="button" onClick={() => confirmSettlement(notification)} disabled={isBusy} className="px-3 sm:px-4">
                           <span className="inline-flex items-center gap-1">
                             <Check size={14} />
-                            Confirm payment
+                            <span className="hidden sm:inline">Confirm payment</span>
                           </span>
                         </Button>
-                        <Button type="button" variant="ghost" onClick={() => declineSettlement(notification)} disabled={isBusy}>
-                          Decline
+                        <Button type="button" variant="ghost" onClick={() => declineSettlement(notification)} disabled={isBusy} className="px-3 sm:px-4">
+                          <span className="inline-flex items-center gap-1">
+                            <XCircle size={14} />
+                            <span className="hidden sm:inline">Decline</span>
+                          </span>
                         </Button>
                       </>
                     )}
 
                     {!notification.readAt && (
-                      <Button type="button" variant="ghost" onClick={() => markRead(notification._id)} disabled={isBusy}>
+                      <Button type="button" variant="ghost" onClick={() => markRead(notification._id)} disabled={isBusy} className="px-3 sm:px-4">
                         <span className="inline-flex items-center gap-1">
                           <CheckCheck size={14} />
-                          Mark read
+                          <span className="hidden sm:inline">Mark read</span>
                         </span>
                       </Button>
                     )}
 
-                    <Button type="button" variant="ghost" onClick={() => deleteNotification(notification._id)} disabled={isBusy}>
+                    <Button type="button" variant="ghost" onClick={() => deleteNotification(notification._id)} disabled={isBusy} className="px-3 sm:px-4">
                       <Trash2 size={14} />
                     </Button>
                   </div>

@@ -24,9 +24,15 @@ export class UsersController {
   }
 
   async create(request: NextRequest) {
-    await connectDatabase();
-    const dto = await validateDto(CreateUserDto, await request.json());
-    const user = await this.usersService.createUser(dto);
-    return ok(user, 201);
+    try {
+      await connectDatabase();
+      getUserIdFromRequest(request);
+      const dto = await validateDto(CreateUserDto, await request.json());
+      const user = await this.usersService.createUser(dto);
+      return ok(user, 201);
+    } catch (error) {
+      if (error instanceof ApiError) return fail(error.message, error.statusCode);
+      return fail("Internal server error", 500);
+    }
   }
 }
