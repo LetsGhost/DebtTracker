@@ -37,7 +37,7 @@ export class AuthController {
     try {
       await connectDatabase();
       const dto = await validateDto(LoginDto, await request.json());
-      const { user, token } = await this.authService.login(dto);
+      const { user, token } = await this.authService.login(dto, request);
       const response = ok(user);
       setAuthCookie(response, token);
       return response;

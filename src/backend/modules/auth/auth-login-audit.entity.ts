@@ -3,37 +3,32 @@ import { index, modelOptions, prop } from "@typegoose/typegoose";
 import { getModelForClass } from "@/backend/common/models/model-registry";
 import { MetadataEntity } from "@/backend/common/models/metadata.entity";
 
-@index({ email: 1 }, { unique: true })
+@index({ createdAt: -1 })
+@index({ email: 1, createdAt: -1 })
 @modelOptions({
   schemaOptions: {
-    collection: "users",
+    collection: "auth_login_audits",
     timestamps: true,
   },
 })
-export class UserEntity extends MetadataEntity {
-  @prop({ required: true, trim: true })
-  displayName!: string;
-
-  @prop({ trim: true })
-  firstName?: string;
-
-  @prop({ trim: true })
-  lastName?: string;
+export class AuthLoginAuditEntity extends MetadataEntity {
+  @prop()
+  userId?: string;
 
   @prop({ required: true, lowercase: true, trim: true })
   email!: string;
 
   @prop({ required: true })
-  passwordHash!: string;
+  success!: boolean;
 
   @prop()
-  emailVerifiedAt?: Date;
+  failureReason?: string;
 
   @prop()
-  suspendedAt?: Date;
+  ipAddress?: string;
 
   @prop()
-  lastLoginAt?: Date;
+  userAgent?: string;
 }
 
-export const UserModel = getModelForClass(UserEntity);
+export const AuthLoginAuditModel = getModelForClass(AuthLoginAuditEntity);

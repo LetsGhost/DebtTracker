@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { NextRequest } from "next/server";
 
 import { env } from "@/backend/common/config/env";
 import { ApiError } from "@/backend/common/errors/errors";
@@ -6,10 +7,26 @@ import { signAccessToken, verifyAccessToken } from "@/backend/common/auth/auth";
 import { logger } from "@/backend/common/logging/logger";
 import { emailTokenService } from "@/backend/common/email/email.tokens";
 import { emailWorkflowService } from "@/backend/common/email/email.flows";
+import { AuthLoginAuditModel } from "@/backend/modules/auth/auth-login-audit.entity";
 import { UsersService } from "@/backend/modules/users/users.service";
 
 export class AuthService {
   constructor(private readonly usersService: UsersService) {}
+
+  private async recordLoginAttempt(input: {
+    userId?: string;
+    email: string;
+    success: boolean;
+    failureReason?: string;
+    ipAddress?: string;
+    userAgent?: string;
+  }) {
+    try {
+      await AuthLoginAuditModel.create(input);
+    } catch (error) {
+      logger.warn("Failed to write login audit", { email: input.email, error });
+    }
+  }
 
   async register(input: { email: string; password: string; displayName: string }) {
     logger.info("User registration attempt", { email: input.email });
@@ -26,14 +43,33 @@ export class AuthService {
     return { user, token };
   }
 
-  async login(input: { email: string; password: string }) {
+  async login(input: { email: string; password: string }, request?: NextRequest) {
     logger.debug("Login attempt", { email: input.email });
+    const email = input.email.toLowerCase();
+    const ipAddress = request?.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request?.headers.get("x-real-ip") || undefined;
+    const userAgent = request?.headers.get("user-agent") || undefined;
+
     try {
       const user = await this.usersService.verifyPassword(input.email, input.password);
       const token = signAccessToken(user.id);
+      await this.usersService.touchLastLogin(user.id);
+      await this.recordLoginAttempt({
+        userId: user.id,
+        email,
+        success: true,
+        ipAddress,
+        userAgent,
+      });
       logger.info("User logged in", { userId: user.id });
       return { user, token };
     } catch (error) {
+      await this.recordLoginAttempt({
+        email,
+        success: false,
+        failureReason: error instanceof Error ? error.message : "unknown",
+        ipAddress,
+        userAgent,
+      });
       logger.warn("Failed login attempt", { email: input.email, error });
       throw error;
     }

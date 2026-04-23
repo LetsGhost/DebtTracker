@@ -93,6 +93,8 @@ export class UsersService {
       email: user.email,
       displayName: user.displayName,
       emailVerifiedAt: user.emailVerifiedAt ?? null,
+      suspendedAt: user.suspendedAt ?? null,
+      lastLoginAt: user.lastLoginAt ?? null,
     };
   }
 
@@ -109,11 +111,17 @@ export class UsersService {
       throw new ApiError("Invalid credentials", 401);
     }
 
+    if (user.suspendedAt) {
+      throw new ApiError("Account is suspended", 403);
+    }
+
     return {
       id: String(user._id),
       email: user.email,
       displayName: user.displayName,
       emailVerifiedAt: user.emailVerifiedAt ?? null,
+      suspendedAt: user.suspendedAt ?? null,
+      lastLoginAt: user.lastLoginAt ?? null,
     };
   }
 
@@ -131,7 +139,13 @@ export class UsersService {
       firstName: user.firstName,
       lastName: user.lastName,
       emailVerifiedAt: user.emailVerifiedAt ?? null,
+      suspendedAt: user.suspendedAt ?? null,
+      lastLoginAt: user.lastLoginAt ?? null,
     };
+  }
+
+  async touchLastLogin(userId: string) {
+    await UserModel.updateOne({ _id: userId }, { $set: { lastLoginAt: new Date() } });
   }
 
   async markEmailVerified(userId: string) {
@@ -178,6 +192,8 @@ export class UsersService {
       firstName: user.firstName ?? fallbackName.firstName,
       lastName: user.lastName ?? fallbackName.lastName,
       emailVerifiedAt: user.emailVerifiedAt ?? null,
+      suspendedAt: user.suspendedAt ?? null,
+      lastLoginAt: user.lastLoginAt ?? null,
       createdAt: user.createdAt,
     };
   }

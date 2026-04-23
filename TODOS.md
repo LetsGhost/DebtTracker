@@ -3,5 +3,6 @@
 - [ ] Notifications if you got an dept someone paid your dept etc. via email
 - [ ] Person to person dept
 - [ ] Sys admin metrics
+- [ ] Fix user suspension
 - [ ] Add email notification ignore.
 - [x] Add account deletion
