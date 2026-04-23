@@ -23,7 +23,7 @@ export const withLogging = <TContext = unknown>(
         {
           requestId,
           duration,
-          error: error instanceof Error ? error.message : String(error),
+          error,
         },
       );
       response = NextResponse.json(

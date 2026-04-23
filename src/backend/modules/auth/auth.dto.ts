@@ -21,3 +21,24 @@ export class LoginDto {
   @MinLength(6)
   password!: string;
 }
+
+export class RequestPasswordResetDto {
+  @IsEmail()
+  email!: string;
+}
+
+export class ResetPasswordDto {
+  @IsString()
+  @MinLength(12)
+  token!: string;
+
+  @IsString()
+  @MinLength(6)
+  password!: string;
+}
+
+export class VerifyEmailDto {
+  @IsString()
+  @MinLength(12)
+  token!: string;
+}

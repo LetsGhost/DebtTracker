@@ -5,7 +5,13 @@ import { connectDatabase } from "@/backend/common/database/db";
 import { ApiError } from "@/backend/common/errors/errors";
 import { fail, ok } from "@/backend/common/http/response";
 import { validateDto } from "@/backend/common/validation/validation";
-import { LoginDto, RegisterDto } from "@/backend/modules/auth/auth.dto";
+import {
+  LoginDto,
+  RegisterDto,
+  RequestPasswordResetDto,
+  ResetPasswordDto,
+  VerifyEmailDto,
+} from "@/backend/modules/auth/auth.dto";
 import { AuthService } from "@/backend/modules/auth/auth.service";
 
 export class AuthController {
@@ -21,9 +27,9 @@ export class AuthController {
       return response;
     } catch (error) {
       if (error instanceof ApiError) {
-        return fail(error.message, error.statusCode);
+        return fail(error.message, error.statusCode, error);
       }
-      return fail("Internal server error", 500);
+      return fail("Internal server error", 500, error);
     }
   }
 
@@ -37,9 +43,9 @@ export class AuthController {
       return response;
     } catch (error) {
       if (error instanceof ApiError) {
-        return fail(error.message, error.statusCode);
+        return fail(error.message, error.statusCode, error);
       }
-      return fail("Internal server error", 500);
+      return fail("Internal server error", 500, error);
     }
   }
 
@@ -50,9 +56,48 @@ export class AuthController {
       return ok(user);
     } catch (error) {
       if (error instanceof ApiError) {
-        return fail(error.message, error.statusCode);
+        return fail(error.message, error.statusCode, error);
       }
-      return fail("Internal server error", 500);
+      return fail("Internal server error", 500, error);
+    }
+  }
+
+  async requestPasswordReset(request: NextRequest) {
+    try {
+      await connectDatabase();
+      const dto = await validateDto(RequestPasswordResetDto, await request.json());
+      return ok(await this.authService.requestPasswordReset(dto));
+    } catch (error) {
+      if (error instanceof ApiError) {
+        return fail(error.message, error.statusCode, error);
+      }
+      return fail("Internal server error", 500, error);
+    }
+  }
+
+  async resetPassword(request: NextRequest) {
+    try {
+      await connectDatabase();
+      const dto = await validateDto(ResetPasswordDto, await request.json());
+      return ok(await this.authService.resetPassword(dto));
+    } catch (error) {
+      if (error instanceof ApiError) {
+        return fail(error.message, error.statusCode, error);
+      }
+      return fail("Internal server error", 500, error);
+    }
+  }
+
+  async verifyEmail(request: NextRequest) {
+    try {
+      await connectDatabase();
+      const dto = await validateDto(VerifyEmailDto, await request.json());
+      return ok(await this.authService.verifyEmail(dto));
+    } catch (error) {
+      if (error instanceof ApiError) {
+        return fail(error.message, error.statusCode, error);
+      }
+      return fail("Internal server error", 500, error);
     }
   }
 

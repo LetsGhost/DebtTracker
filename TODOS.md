@@ -1,0 +1,5 @@
+- [x] Email varification for registering an account
+- [x] Password reset via email
+- [ ] Notifications if you got an dept someone paid your dept etc. via email
+- [ ] Person to person dept
+- [ ] Sys admin metrics

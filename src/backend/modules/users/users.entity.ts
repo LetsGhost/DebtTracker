@@ -25,6 +25,9 @@ export class UserEntity extends MetadataEntity {
 
   @prop({ required: true })
   passwordHash!: string;
+
+  @prop()
+  emailVerifiedAt?: Date;
 }
 
 export const UserModel = getModelForClass(UserEntity);

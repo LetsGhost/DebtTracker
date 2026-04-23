@@ -18,8 +18,8 @@ export class UsersController {
       const query = request.nextUrl.searchParams.get("query") ?? "";
       return ok(await this.usersService.searchUsers(query));
     } catch (error) {
-      if (error instanceof ApiError) return fail(error.message, error.statusCode);
-      return fail("Internal server error", 500);
+      if (error instanceof ApiError) return fail(error.message, error.statusCode, error);
+      return fail("Internal server error", 500, error);
     }
   }
 
@@ -31,8 +31,8 @@ export class UsersController {
       const user = await this.usersService.createUser(dto);
       return ok(user, 201);
     } catch (error) {
-      if (error instanceof ApiError) return fail(error.message, error.statusCode);
-      return fail("Internal server error", 500);
+      if (error instanceof ApiError) return fail(error.message, error.statusCode, error);
+      return fail("Internal server error", 500, error);
     }
   }
 
@@ -42,8 +42,8 @@ export class UsersController {
       const userId = getUserIdFromRequest(request);
       return ok(await this.usersService.getById(userId));
     } catch (error) {
-      if (error instanceof ApiError) return fail(error.message, error.statusCode);
-      return fail("Internal server error", 500);
+      if (error instanceof ApiError) return fail(error.message, error.statusCode, error);
+      return fail("Internal server error", 500, error);
     }
   }
 
@@ -54,8 +54,8 @@ export class UsersController {
       const dto = await validateDto(UpdateUserSettingsDto, await request.json());
       return ok(await this.usersService.updateUserSettings(userId, dto));
     } catch (error) {
-      if (error instanceof ApiError) return fail(error.message, error.statusCode);
-      return fail("Internal server error", 500);
+      if (error instanceof ApiError) return fail(error.message, error.statusCode, error);
+      return fail("Internal server error", 500, error);
     }
   }
 }

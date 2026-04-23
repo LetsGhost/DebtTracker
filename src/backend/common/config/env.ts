@@ -12,6 +12,12 @@ export const env = {
   jwtSecret: process.env.JWT_SECRET as string,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "7d",
   jwtCookieName: process.env.JWT_COOKIE_NAME ?? "ft_token",
+  appUrl: process.env.APP_URL ?? "http://localhost:3000",
+  resendApiKey: process.env.RESEND_API_KEY,
+  emailFrom: process.env.EMAIL_FROM,
+  emailReplyTo: process.env.EMAIL_REPLY_TO,
+  emailTokenSecret: process.env.EMAIL_TOKEN_SECRET,
+  emailTokenExpiresIn: process.env.EMAIL_TOKEN_EXPIRES_IN ?? "24h",
   nodeEnv: process.env.NODE_ENV ?? "development",
   sysAdminEmails: (process.env.SYS_ADMIN_EMAILS ?? "")
     .split(",")

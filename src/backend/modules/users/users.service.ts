@@ -70,6 +70,7 @@ export class UsersService {
       id: String(user._id),
       email: user.email,
       displayName: user.displayName,
+      emailVerifiedAt: user.emailVerifiedAt ?? null,
     };
   }
 
@@ -90,7 +91,53 @@ export class UsersService {
       id: String(user._id),
       email: user.email,
       displayName: user.displayName,
+      emailVerifiedAt: user.emailVerifiedAt ?? null,
     };
+  }
+
+  async getByEmail(email: string) {
+    const user = await UserModel.findOne({ email: email.toLowerCase() }).lean();
+
+    if (!user) {
+      return null;
+    }
+
+    return {
+      id: String(user._id),
+      email: user.email,
+      displayName: user.displayName,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      emailVerifiedAt: user.emailVerifiedAt ?? null,
+    };
+  }
+
+  async markEmailVerified(userId: string) {
+    const user = await UserModel.findById(userId);
+
+    if (!user) {
+      throw new ApiError("User not found", 404);
+    }
+
+    if (!user.emailVerifiedAt) {
+      user.emailVerifiedAt = new Date();
+      await user.save();
+    }
+
+    return this.getById(userId);
+  }
+
+  async updatePassword(userId: string, password: string) {
+    const user = await UserModel.findById(userId);
+
+    if (!user) {
+      throw new ApiError("User not found", 404);
+    }
+
+    user.passwordHash = await bcrypt.hash(password, 12);
+    await user.save();
+
+    return this.getById(userId);
   }
 
   async getById(userId: string) {
@@ -108,6 +155,7 @@ export class UsersService {
       displayName: user.displayName,
       firstName: user.firstName ?? fallbackName.firstName,
       lastName: user.lastName ?? fallbackName.lastName,
+      emailVerifiedAt: user.emailVerifiedAt ?? null,
       createdAt: user.createdAt,
     };
   }

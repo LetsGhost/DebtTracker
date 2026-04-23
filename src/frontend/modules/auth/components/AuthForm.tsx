@@ -70,6 +70,14 @@ export const AuthForm = ({ mode }: AuthFormProps) => {
           {mode === "login" ? "Create one" : "Sign in"}
         </Link>
       </p>
+
+      {mode === "login" && (
+        <p className="text-sm text-(--text-muted)">
+          <Link className="font-semibold text-(--brand)" href="/forgot-password">
+            Forgot your password?
+          </Link>
+        </p>
+      )}
     </form>
   );
 };
