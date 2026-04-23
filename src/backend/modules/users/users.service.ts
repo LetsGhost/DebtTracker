@@ -2,6 +2,9 @@ import bcrypt from "bcryptjs";
 
 import { ApiError } from "@/backend/common/errors/errors";
 import { logger } from "@/backend/common/logging/logger";
+import { GroupInviteModel } from "@/backend/modules/groups/group-invite.entity";
+import { GroupMemberModel } from "@/backend/modules/groups/group-member.entity";
+import { NotificationModel } from "@/backend/modules/notifications/notification.entity";
 import { UserModel } from "@/backend/modules/users/users.entity";
 
 const splitDisplayName = (displayName: string) => {
@@ -23,6 +26,25 @@ const splitDisplayName = (displayName: string) => {
 const composeDisplayName = (firstName: string, lastName: string) => `${firstName} ${lastName}`.trim();
 
 export class UsersService {
+  async deleteAccount(userId: string) {
+    const user = await UserModel.findById(userId);
+
+    if (!user) {
+      throw new ApiError("User not found", 404);
+    }
+
+    await Promise.all([
+      NotificationModel.deleteMany({ userId }),
+      GroupInviteModel.updateMany({ invitedUserId: userId, status: "pending" }, { $set: { status: "revoked", actedAt: new Date() } }),
+      GroupMemberModel.updateMany({ userId, removedAt: null }, { $set: { removedAt: new Date() } }),
+    ]);
+
+    await user.deleteOne();
+    logger.info("User account deleted", { userId, email: user.email });
+
+    return { deleted: true };
+  }
+
   async searchUsers(query: string) {
     const normalized = query.trim();
 

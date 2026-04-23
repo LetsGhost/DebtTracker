@@ -58,4 +58,15 @@ export class UsersController {
       return fail("Internal server error", 500, error);
     }
   }
+
+  async deleteMe(request: NextRequest) {
+    try {
+      await connectDatabase();
+      const userId = getUserIdFromRequest(request);
+      return ok(await this.usersService.deleteAccount(userId));
+    } catch (error) {
+      if (error instanceof ApiError) return fail(error.message, error.statusCode, error);
+      return fail("Internal server error", 500, error);
+    }
+  }
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
 import { FileText, History, Lock, UserRound } from "lucide-react";
 
@@ -9,7 +10,7 @@ import { ModuleNav } from "@/frontend/shared/components/ModuleNav";
 import { TextField } from "@/frontend/shared/components/TextField";
 import { useDialog } from "@/frontend/shared/hooks/useDialog";
 import { useToast } from "@/frontend/shared/hooks/useToast";
-import { apiPatch } from "@/frontend/shared/lib/api-client";
+import { apiDelete, apiPatch } from "@/frontend/shared/lib/api-client";
 
 type SettingsPageProps = {
   user: {
@@ -47,6 +48,7 @@ const deriveNames = (displayName: string) => {
 };
 
 export const SettingsPage = ({ user }: SettingsPageProps) => {
+  const router = useRouter();
   const toast = useToast();
   const dialog = useDialog();
   const fallbackNames = useMemo(() => deriveNames(user.displayName), [user.displayName]);
@@ -57,6 +59,7 @@ export const SettingsPage = ({ user }: SettingsPageProps) => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const openTermsDialog = async () => {
     await dialog.open({
@@ -169,6 +172,36 @@ export const SettingsPage = ({ user }: SettingsPageProps) => {
     }
   };
 
+  const onDeleteAccount = async () => {
+    const confirmed = await dialog.open({
+      title: "Account wirklich loeschen?",
+      description: "Diese Aktion entfernt deinen Account dauerhaft und loggt dich sofort aus.",
+      actions: [
+        {
+          label: "Account loeschen",
+          variant: "danger",
+          onClick: () => undefined,
+        },
+      ],
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await apiDelete<{ deleted: boolean }>("/api/users/me");
+      toast.success("Dein Account wurde geloescht.");
+      router.replace("/login");
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Account konnte nicht geloescht werden");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 px-4 py-8">
       <header className="space-y-4 rounded-2xl border border-black/10 bg-(--surface) p-5">
@@ -242,6 +275,15 @@ export const SettingsPage = ({ user }: SettingsPageProps) => {
 
             <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? "Speichern..." : "Einstellungen speichern"}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full border border-red-300 text-red-700 hover:bg-red-50"
+              disabled={isDeleting}
+              onClick={onDeleteAccount}
+            >
+              {isDeleting ? "Loeschen..." : "Account loeschen"}
             </Button>
           </form>
           </Card>
