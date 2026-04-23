@@ -7,11 +7,12 @@
 
 # production
 /build
-/logs
+/logs/*
 
 # misc
 .DS_Store
 *.pem
+logs/
 
 # debug
 npm-debug.log*
@@ -23,11 +24,9 @@ pnpm-debug.log*
 .env*.local
 .env
 
-# vercel
-.vercel
-
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
 AGENTS.md
-logs/*
+
