@@ -4,6 +4,24 @@ import { ApiError } from "@/backend/common/errors/errors";
 import { logger } from "@/backend/common/logging/logger";
 import { UserModel } from "@/backend/modules/users/users.entity";
 
+const splitDisplayName = (displayName: string) => {
+  const tokens = displayName.trim().split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) {
+    return { firstName: "", lastName: "" };
+  }
+
+  if (tokens.length === 1) {
+    return { firstName: tokens[0], lastName: "" };
+  }
+
+  return {
+    firstName: tokens[0],
+    lastName: tokens.slice(1).join(" "),
+  };
+};
+
+const composeDisplayName = (firstName: string, lastName: string) => `${firstName} ${lastName}`.trim();
+
 export class UsersService {
   async searchUsers(query: string) {
     const normalized = query.trim();
@@ -82,11 +100,65 @@ export class UsersService {
       throw new ApiError("User not found", 404);
     }
 
+    const fallbackName = splitDisplayName(user.displayName);
+
     return {
       id: String(user._id),
       email: user.email,
       displayName: user.displayName,
+      firstName: user.firstName ?? fallbackName.firstName,
+      lastName: user.lastName ?? fallbackName.lastName,
       createdAt: user.createdAt,
     };
+  }
+
+  async updateUserSettings(
+    userId: string,
+    input: {
+      firstName?: string;
+      lastName?: string;
+      currentPassword?: string;
+      newPassword?: string;
+    },
+  ) {
+    const user = await UserModel.findById(userId);
+
+    if (!user) {
+      throw new ApiError("User not found", 404);
+    }
+
+    const firstNameProvided = typeof input.firstName === "string";
+    const lastNameProvided = typeof input.lastName === "string";
+
+    if (firstNameProvided || lastNameProvided) {
+      const nextFirstName = (input.firstName ?? user.firstName ?? splitDisplayName(user.displayName).firstName).trim();
+      const nextLastName = (input.lastName ?? user.lastName ?? splitDisplayName(user.displayName).lastName).trim();
+
+      if (!nextFirstName || !nextLastName) {
+        throw new ApiError("First and last name are required", 400);
+      }
+
+      user.firstName = nextFirstName;
+      user.lastName = nextLastName;
+      user.displayName = composeDisplayName(nextFirstName, nextLastName);
+    }
+
+    const wantsPasswordUpdate = Boolean(input.currentPassword || input.newPassword);
+
+    if (wantsPasswordUpdate) {
+      if (!input.currentPassword || !input.newPassword) {
+        throw new ApiError("Current and new password are required", 400);
+      }
+
+      const validCurrentPassword = await bcrypt.compare(input.currentPassword, user.passwordHash);
+      if (!validCurrentPassword) {
+        throw new ApiError("Current password is incorrect", 401);
+      }
+
+      user.passwordHash = await bcrypt.hash(input.newPassword, 12);
+    }
+
+    await user.save();
+    return this.getById(userId);
   }
 }

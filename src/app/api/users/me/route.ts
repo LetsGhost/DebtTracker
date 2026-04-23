@@ -1,0 +1,10 @@
+import { withLogging } from "@/backend/common/logging/logging-middleware";
+import { container } from "@/backend/container";
+
+export const GET = withLogging(async (request) =>
+  container.usersController.me(request)
+);
+
+export const PATCH = withLogging(async (request) =>
+  container.usersController.updateMe(request)
+);

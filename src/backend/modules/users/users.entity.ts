@@ -14,6 +14,12 @@ export class UserEntity extends MetadataEntity {
   @prop({ required: true, trim: true })
   displayName!: string;
 
+  @prop({ trim: true })
+  firstName?: string;
+
+  @prop({ trim: true })
+  lastName?: string;
+
   @prop({ required: true, lowercase: true, trim: true })
   email!: string;
 
