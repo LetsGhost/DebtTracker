@@ -16,8 +16,8 @@ const bodyFont = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "FinancTracker",
-  description: "Multi-collab finance tracker with modular monolith architecture",
+  title: "UOme",
+  description: "UOme - collaborative finance tracking with modular monolith architecture",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

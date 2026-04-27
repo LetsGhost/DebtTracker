@@ -7,7 +7,7 @@ for (const key of required) {
 }
 
 export const env = {
-  appName: process.env.NEXT_PUBLIC_APP_NAME ?? "FinancTracker",
+  appName: process.env.NEXT_PUBLIC_APP_NAME ?? "UOme",
   mongodbUri: process.env.MONGODB_URI as string,
   jwtSecret: process.env.JWT_SECRET as string,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "7d",

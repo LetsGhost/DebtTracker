@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { CheckCircle2, HandCoins } from "lucide-react";
 
 import { Button } from "@/frontend/shared/components/Button";
@@ -42,33 +42,48 @@ export const SettlementsPage = ({ userId }: SettlementsPageProps) => {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const refreshSettlements = async (groupId: string) => {
+  const refreshSettlements = useCallback(async (groupId: string) => {
     const result = await apiGet<Settlement[]>(`/api/groups/${groupId}/settlements`);
     setSettlements(result);
-  };
+  }, []);
+
+  const loadGroupData = useCallback(async (groupId: string) => {
+    const [settlementsResult, membersResult] = await Promise.all([
+      apiGet<Settlement[]>(`/api/groups/${groupId}/settlements`),
+      apiGet<Member[]>(`/api/groups/${groupId}/members`),
+    ]);
+
+    setSettlements(settlementsResult);
+    setMembers(membersResult);
+
+    const firstOtherMember = membersResult.find((member) => member.userId !== userId);
+    setSelectedReceiverId(firstOtherMember?.userId ?? "");
+  }, [userId]);
 
   useEffect(() => {
-    void apiGet<Group[]>("/api/groups")
-      .then((result) => {
+    void (async () => {
+      try {
+        const result = await apiGet<Group[]>("/api/groups");
         setGroups(result);
         if (result.length > 0) {
           setSelectedGroupId(result[0].id);
         }
-      })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load groups"));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to load groups");
+      }
+    })();
   }, []);
 
   useEffect(() => {
     if (!selectedGroupId) return;
-    void Promise.all([
-      refreshSettlements(selectedGroupId),
-      apiGet<Member[]>(`/api/groups/${selectedGroupId}/members`).then((result) => {
-        setMembers(result);
-        const firstOtherMember = result.find((member) => member.userId !== userId);
-        setSelectedReceiverId(firstOtherMember?.userId ?? "");
-      }),
-    ]).catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load settlements"));
-  }, [selectedGroupId]);
+    void (async () => {
+      try {
+        await loadGroupData(selectedGroupId);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to load settlements");
+      }
+    })();
+  }, [loadGroupData, selectedGroupId]);
 
   const onCreateSettlement = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

@@ -64,7 +64,7 @@ export const SettingsPage = ({ user }: SettingsPageProps) => {
   const openTermsDialog = async () => {
     await dialog.open({
       title: "Terms of Service",
-      description: "Nutzungsbedingungen fuer FinancTracker",
+      description: "Nutzungsbedingungen fuer UOme",
       cancelLabel: "Schliessen",
       children: (
         <div className="space-y-2">

@@ -24,5 +24,6 @@ export default async function SysAdminRoute() {
   }
 
   const stats = await new SysAdminService().getStats();
-  return <SysAdminPage initialStats={stats} />;
+  const users = await new SysAdminService().listUsers("");
+  return <SysAdminPage initialStats={stats} initialUsers={users} />;
 }

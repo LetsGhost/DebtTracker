@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Coins, HandCoins, Shield, Trash2, UserCog, UserPlus, Users } from "lucide-react";
 
 import { apiDelete, apiGet, apiPatch, apiPost } from "@/frontend/shared/lib/api-client";
@@ -91,60 +91,55 @@ export const WorkflowPanels = ({ userId }: WorkflowPanelsProps) => {
     [groups, selectedGroupId],
   );
 
-  const refreshGroups = async () => {
+  const refreshGroups = useCallback(async () => {
     const result = await apiGet<Group[]>("/api/groups");
     setGroups(result);
 
-    if (result.length > 0 && !selectedGroupId) {
-      setSelectedGroupId(result[0].id);
-    }
-  };
+    setSelectedGroupId((current) => current || result[0]?.id || "");
+  }, []);
 
-  const refreshPolicy = async (groupId: string) => {
-    const result = await apiGet<GroupPolicy>(`/api/groups/${groupId}/policy`);
-    setPolicy(result);
-  };
+  const refreshGroupData = useCallback(async (groupId: string) => {
+    const [policyResult, settlementsResult, membersResult, invitesResult] = await Promise.all([
+      apiGet<GroupPolicy>(`/api/groups/${groupId}/policy`),
+      apiGet<Settlement[]>(`/api/groups/${groupId}/settlements`),
+      apiGet<GroupMember[]>(`/api/groups/${groupId}/members`),
+      apiGet<GroupInvite[]>(`/api/groups/${groupId}/invites`),
+    ]);
 
-  const refreshSettlements = async (groupId: string) => {
+    setPolicy(policyResult);
+    setSettlements(settlementsResult);
+    setMembers(membersResult);
+    setInvites(invitesResult);
+  }, []);
+
+  const refreshSettlements = useCallback(async (groupId: string) => {
     const result = await apiGet<Settlement[]>(`/api/groups/${groupId}/settlements`);
     setSettlements(result);
-  };
-
-  const refreshMembers = async (groupId: string) => {
-    const result = await apiGet<GroupMember[]>(`/api/groups/${groupId}/members`);
-    setMembers(result);
-  };
-
-  const refreshInvites = async (groupId: string) => {
-    const result = await apiGet<GroupInvite[]>(`/api/groups/${groupId}/invites`);
-    setInvites(result);
-  };
+  }, []);
 
   useEffect(() => {
-    void refreshGroups().catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load groups"));
-  }, []);
+    void (async () => {
+      try {
+        await refreshGroups();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to load groups");
+      }
+    })();
+  }, [refreshGroups]);
 
   useEffect(() => {
     if (!selectedGroupId) {
       return;
     }
 
-    void refreshPolicy(selectedGroupId).catch((e: unknown) =>
-      setError(e instanceof Error ? e.message : "Failed to load policy"),
-    );
-
-    void refreshSettlements(selectedGroupId).catch((e: unknown) =>
-      setError(e instanceof Error ? e.message : "Failed to load settlements"),
-    );
-
-    void refreshMembers(selectedGroupId).catch((e: unknown) =>
-      setError(e instanceof Error ? e.message : "Failed to load members"),
-    );
-
-    void refreshInvites(selectedGroupId).catch((e: unknown) =>
-      setError(e instanceof Error ? e.message : "Failed to load invites"),
-    );
-  }, [selectedGroupId]);
+    void (async () => {
+      try {
+        await refreshGroupData(selectedGroupId);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to load group data");
+      }
+    })();
+  }, [refreshGroupData, selectedGroupId]);
 
   const onCreateGroup = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
