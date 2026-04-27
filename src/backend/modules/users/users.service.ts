@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 
 import { ApiError } from "@/backend/common/errors/errors";
 import { logger } from "@/backend/common/logging/logger";
+import { FriendRequestModel } from "@/backend/modules/friends/friends.entity";
 import { GroupInviteModel } from "@/backend/modules/groups/group-invite.entity";
 import { GroupMemberModel } from "@/backend/modules/groups/group-member.entity";
 import { NotificationModel } from "@/backend/modules/notifications/notification.entity";
@@ -45,10 +46,23 @@ export class UsersService {
     return { deleted: true };
   }
 
-  async searchUsers(query: string) {
+  async searchUsers(query: string, actorUserId: string) {
     const normalized = query.trim();
 
     if (normalized.length < 2) {
+      return [];
+    }
+
+    const friendships = await FriendRequestModel.find({
+      status: "accepted",
+      $or: [{ requesterUserId: actorUserId }, { recipientUserId: actorUserId }],
+    }).lean();
+
+    const friendUserIds = friendships.map((entry: any) => (
+      entry.requesterUserId === actorUserId ? entry.recipientUserId : entry.requesterUserId
+    ));
+
+    if (friendUserIds.length === 0) {
       return [];
     }
 
@@ -56,6 +70,7 @@ export class UsersService {
     const matcher = new RegExp(escaped, "i");
 
     const users = await UserModel.find({
+      _id: { $in: friendUserIds },
       $or: [{ displayName: matcher }, { email: matcher }],
     })
       .sort({ createdAt: -1 })
@@ -85,6 +100,7 @@ export class UsersService {
       email: emailNorm,
       displayName: input.displayName,
       passwordHash,
+      emailNotificationsEnabled: true,
     });
     logger.info("User created successfully", { userId: String(user._id), email: emailNorm });
 
@@ -93,8 +109,10 @@ export class UsersService {
       email: user.email,
       displayName: user.displayName,
       emailVerifiedAt: user.emailVerifiedAt ?? null,
+      emailVerificationLastSentAt: user.emailVerificationLastSentAt ?? null,
       suspendedAt: user.suspendedAt ?? null,
       lastLoginAt: user.lastLoginAt ?? null,
+      emailNotificationsEnabled: user.emailNotificationsEnabled !== false,
     };
   }
 
@@ -122,6 +140,7 @@ export class UsersService {
       emailVerifiedAt: user.emailVerifiedAt ?? null,
       suspendedAt: user.suspendedAt ?? null,
       lastLoginAt: user.lastLoginAt ?? null,
+      emailNotificationsEnabled: user.emailNotificationsEnabled !== false,
     };
   }
 
@@ -139,9 +158,15 @@ export class UsersService {
       firstName: user.firstName,
       lastName: user.lastName,
       emailVerifiedAt: user.emailVerifiedAt ?? null,
+      emailVerificationLastSentAt: user.emailVerificationLastSentAt ?? null,
       suspendedAt: user.suspendedAt ?? null,
       lastLoginAt: user.lastLoginAt ?? null,
+      emailNotificationsEnabled: user.emailNotificationsEnabled !== false,
     };
+  }
+
+  async touchVerificationEmailSent(userId: string) {
+    await UserModel.updateOne({ _id: userId }, { $set: { emailVerificationLastSentAt: new Date() } });
   }
 
   async touchLastLogin(userId: string) {
@@ -157,6 +182,7 @@ export class UsersService {
 
     if (!user.emailVerifiedAt) {
       user.emailVerifiedAt = new Date();
+      user.emailVerificationLastSentAt = undefined;
       await user.save();
     }
 
@@ -192,9 +218,11 @@ export class UsersService {
       firstName: user.firstName ?? fallbackName.firstName,
       lastName: user.lastName ?? fallbackName.lastName,
       emailVerifiedAt: user.emailVerifiedAt ?? null,
+      emailVerificationLastSentAt: user.emailVerificationLastSentAt ?? null,
       suspendedAt: user.suspendedAt ?? null,
       lastLoginAt: user.lastLoginAt ?? null,
       createdAt: user.createdAt,
+      emailNotificationsEnabled: user.emailNotificationsEnabled !== false,
     };
   }
 
@@ -205,6 +233,7 @@ export class UsersService {
       lastName?: string;
       currentPassword?: string;
       newPassword?: string;
+      emailNotificationsEnabled?: boolean;
     },
   ) {
     const user = await UserModel.findById(userId);
@@ -242,6 +271,10 @@ export class UsersService {
       }
 
       user.passwordHash = await bcrypt.hash(input.newPassword, 12);
+    }
+
+    if (typeof input.emailNotificationsEnabled === "boolean") {
+      user.emailNotificationsEnabled = input.emailNotificationsEnabled;
     }
 
     await user.save();

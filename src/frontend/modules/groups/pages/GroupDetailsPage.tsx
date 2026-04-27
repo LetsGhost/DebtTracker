@@ -143,7 +143,7 @@ export const GroupDetailsPage = ({ groupId, userId, initialBundle }: GroupDetail
         toUserId,
         amount,
       });
-      await load();
+      await loadGroupDetails();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to send payment confirmation");
     } finally {

@@ -117,6 +117,16 @@ export const WorkflowPanels = ({ userId }: WorkflowPanelsProps) => {
     setSettlements(result);
   }, []);
 
+  const refreshInvites = useCallback(async (groupId: string) => {
+    const result = await apiGet<GroupInvite[]>(`/api/groups/${groupId}/invites`);
+    setInvites(result);
+  }, []);
+
+  const refreshMembers = useCallback(async (groupId: string) => {
+    const result = await apiGet<GroupMember[]>(`/api/groups/${groupId}/members`);
+    setMembers(result);
+  }, []);
+
   useEffect(() => {
     void (async () => {
       try {

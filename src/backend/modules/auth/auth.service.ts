@@ -11,6 +11,8 @@ import { AuthLoginAuditModel } from "@/backend/modules/auth/auth-login-audit.ent
 import { UsersService } from "@/backend/modules/users/users.service";
 
 export class AuthService {
+  private static readonly RESEND_VERIFICATION_COOLDOWN_MS = 60_000;
+
   constructor(private readonly usersService: UsersService) {}
 
   private async recordLoginAttempt(input: {
@@ -31,16 +33,21 @@ export class AuthService {
   async register(input: { email: string; password: string; displayName: string }) {
     logger.info("User registration attempt", { email: input.email });
     const user = await this.usersService.createUser(input);
-    const token = signAccessToken(user.id);
-    void emailWorkflowService.sendEmailVerificationEmail(user).catch((error) => {
-      logger.warn("Failed to send verification email", {
-        userId: user.id,
-        email: user.email,
-        error,
+
+    void emailWorkflowService
+      .sendEmailVerificationEmail(user)
+      .then(async () => {
+        await this.usersService.touchVerificationEmailSent(user.id);
+      })
+      .catch((error) => {
+        logger.warn("Failed to send verification email", {
+          userId: user.id,
+          email: user.email,
+          error,
+        });
       });
-    });
     logger.info("User registered successfully", { userId: user.id, email: user.email });
-    return { user, token };
+    return user;
   }
 
   async login(input: { email: string; password: string }, request?: NextRequest) {
@@ -51,7 +58,16 @@ export class AuthService {
 
     try {
       const user = await this.usersService.verifyPassword(input.email, input.password);
-      const token = signAccessToken(user.id);
+
+      if (user.suspendedAt) {
+        throw new ApiError("Account is suspended", 403);
+      }
+
+      if (!user.emailVerifiedAt) {
+        throw new ApiError("Please verify your email before logging in", 403);
+      }
+
+      const token = signAccessToken(user.id, true);
       await this.usersService.touchLastLogin(user.id);
       await this.recordLoginAttempt({
         userId: user.id,
@@ -84,7 +100,18 @@ export class AuthService {
       throw new ApiError("Unauthorized", 401);
     }
 
-    return this.usersService.getById(payload.userId);
+    if (!payload.verified) {
+      throw new ApiError("Please verify your email before using the app", 403);
+    }
+
+    const user = await this.usersService.getById(payload.userId);
+
+    if (user.suspendedAt) {
+      logger.warn("Suspended user attempted authenticated access", { userId: user.id, email: user.email });
+      throw new ApiError("Account is suspended", 403);
+    }
+
+    return user;
   }
 
   async requestPasswordReset(input: { email: string }) {
@@ -112,5 +139,32 @@ export class AuthService {
     const updatedUser = await this.usersService.markEmailVerified(claims.userId);
     logger.info("Email verified", { userId: updatedUser.id, email: updatedUser.email });
     return { verified: true };
+  }
+
+  async resendVerificationEmail(input: { email: string }) {
+    const user = await this.usersService.getByEmail(input.email);
+
+    if (!user) {
+      logger.info("Verification resend requested for unknown email", { email: input.email.toLowerCase() });
+      return { emailSent: true };
+    }
+
+    if (user.emailVerifiedAt) {
+      return { emailSent: true };
+    }
+
+    const nowMs = Date.now();
+    const lastSentMs = user.emailVerificationLastSentAt ? new Date(user.emailVerificationLastSentAt).getTime() : 0;
+    const elapsed = nowMs - lastSentMs;
+
+    if (elapsed < AuthService.RESEND_VERIFICATION_COOLDOWN_MS) {
+      const waitSeconds = Math.ceil((AuthService.RESEND_VERIFICATION_COOLDOWN_MS - elapsed) / 1000);
+      throw new ApiError(`Please wait ${waitSeconds}s before requesting another verification email`, 429);
+    }
+
+    await emailWorkflowService.sendEmailVerificationEmail(user);
+    await this.usersService.touchVerificationEmailSent(user.id);
+    logger.info("Verification email resent", { userId: user.id, email: user.email });
+    return { emailSent: true };
   }
 }

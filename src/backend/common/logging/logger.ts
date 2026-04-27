@@ -5,7 +5,7 @@ import winston from "winston";
 import { env } from "@/backend/common/config/env";
 
 const isDev = env.nodeEnv === "development";
-const logsDir = path.join(process.cwd(), "logs");
+const logsDir = env.logDir;
 
 const serializeLogValue = (value: unknown, seen = new WeakSet<object>()): unknown => {
   if (value instanceof Error) {
@@ -63,6 +63,12 @@ const format = winston.format.combine(
 );
 
 const transports: winston.transport[] = [
+  new winston.transports.File({
+    filename: path.join(logsDir, "app.log"),
+    maxsize: 5242880,
+    maxFiles: 7,
+    format,
+  }),
   new winston.transports.File({
     filename: path.join(logsDir, "error.log"),
     level: "error",
