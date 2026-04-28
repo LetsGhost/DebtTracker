@@ -67,7 +67,7 @@ export const SettingsPage = ({ user }: SettingsPageProps) => {
   const openTermsDialog = async () => {
     await dialog.open({
       title: "Terms of Service",
-      description: "Nutzungsbedingungen fuer UOme",
+      description: "Nutzungsbedingungen fuer YouOme",
       cancelLabel: "Schliessen",
       children: (
         <div className="space-y-2">
@@ -88,9 +88,6 @@ export const SettingsPage = ({ user }: SettingsPageProps) => {
       children: (
         <div className="space-y-2">
           <p><strong>v1.0.0</strong> Initiale stabile Version.</p>
-          <p><strong>v1.1.0</strong> Verbesserte Gruppen- und Settlement-Workflows.</p>
-          <p><strong>v1.2.0</strong> Notification-Clear-Funktion und UX-Optimierungen.</p>
-          <p><strong>v1.3.0</strong> Neue User-Settings fuer Namen und Passwort.</p>
         </div>
       ),
     });

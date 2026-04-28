@@ -1,4 +1,4 @@
-# UOme
+# YouOme
 
 Next.js + TypeScript modular monolith for a collaborative finance tracker.
 

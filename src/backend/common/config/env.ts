@@ -7,7 +7,7 @@ for (const key of required) {
 }
 
 export const env = {
-  appName: process.env.NEXT_PUBLIC_APP_NAME ?? "UOme",
+  appName: process.env.NEXT_PUBLIC_APP_NAME ?? "YouOme",
   mongodbUri: process.env.MONGODB_URI as string,
   jwtSecret: process.env.JWT_SECRET as string,
   logDir: process.env.LOG_DIR ?? (process.env.NODE_ENV === "production" ? "/app/logs" : "logs"),
