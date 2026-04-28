@@ -1,5 +1,7 @@
 import { ApiError } from "@/backend/common/errors/errors";
 import { getEventBus } from "@/backend/common/events/event-bus";
+import { logger } from "@/backend/common/logging/logger";
+import { toObjectId } from "@/backend/common/models/id-helper";
 import { FriendRequestModel } from "@/backend/modules/friends/friends.entity";
 import { GroupModel } from "@/backend/modules/groups/group.entity";
 import { GroupInviteModel } from "@/backend/modules/groups/group-invite.entity";
@@ -23,10 +25,18 @@ const toPlainPolicy = (policy: any) => ({
 
 export class GroupsService {
   async getGroup(groupId: string, actorUserId: string) {
-    const context = await getMemberContext(groupId, actorUserId);
-    const group = await GroupModel.findOne({ _id: groupId, deletedAt: null }).lean();
+    let context;
+    try {
+      context = await getMemberContext(groupId, actorUserId);
+    } catch (err) {
+      logger.warn("getMemberContext failed", { groupId, actorUserId, err });
+      throw err;
+    }
+
+    const group = await GroupModel.findOne({ _id: toObjectId(groupId), deletedAt: null }).lean();
 
     if (!group) {
+      logger.warn("Group lookup returned no document", { groupId, actorUserId });
       throw new ApiError("Group not found", 404);
     }
 
@@ -279,7 +289,7 @@ export class GroupsService {
       throw new ApiError("Only admins can delete a group", 403);
     }
 
-    const group = await GroupModel.findOne({ _id: groupId, deletedAt: null });
+    const group = await GroupModel.findOne({ _id: toObjectId(groupId), deletedAt: null });
 
     if (!group) {
       throw new ApiError("Group not found", 404);
