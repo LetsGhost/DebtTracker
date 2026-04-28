@@ -1,8 +1,7 @@
 {
-  "name": "financ-tracker",
+  "name": "youome",
   "version": "0.1.0",
   "private": true,
-  "description": "Modular monolith finance tracker with Next.js, Typegoose, and JWT auth",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
