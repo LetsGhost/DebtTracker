@@ -14,25 +14,35 @@ export type CurrentUser = {
   emailNotificationsEnabled?: boolean;
 };
 
-export const getCurrentUserOrRedirect = async (): Promise<CurrentUser> => {
+export const getCurrentUser = async (): Promise<CurrentUser | null> => {
   const token = (await cookies()).get(env.jwtCookieName)?.value;
   const payload = verifyAccessToken(token);
 
-  if (!payload?.userId) {
-    redirect("/login");
+  if (!payload?.userId || !payload.verified) {
+    return null;
   }
 
   const response = await container.authController.me();
 
   if (!response.ok) {
-    redirect("/login");
+    return null;
   }
 
-  const json = await response.json() as { success?: boolean; data?: CurrentUser };
+  const json = (await response.json()) as { success?: boolean; data?: CurrentUser };
 
   if (!json.success || !json.data) {
-    redirect("/login");
+    return null;
   }
 
   return json.data;
+};
+
+export const getCurrentUserOrRedirect = async (): Promise<CurrentUser> => {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  return user;
 };
