@@ -25,8 +25,10 @@ export class GroupsController {
       const userId = getUserIdFromRequest(request);
       return ok(await this.groupsService.getGroup(groupId, userId));
     } catch (error) {
-      if (error instanceof ApiError) return fail(error.message, error.statusCode);
-      return fail("Internal server error", 500);
+      if (error instanceof ApiError) return fail(error.message, error.statusCode, error);
+      // unexpected error: log stack and return generic message
+      const msg = "Internal server error";
+      return fail(msg, 500, error);
     }
   }
 
@@ -35,7 +37,9 @@ export class GroupsController {
       await connectDatabase();
       const userId = getUserIdFromRequest(request);
 
-      const [group, policy, expenses, balances, members, settlements] = await Promise.all([
+      // Run service calls in parallel but inspect results so we can return
+      // better diagnostic information when one of them fails on the server.
+      const results = await Promise.allSettled([
         this.groupsService.getGroup(groupId, userId),
         this.groupsService.getPolicy(groupId, userId),
         this.expensesService.listExpenses(groupId, userId),
@@ -44,17 +48,55 @@ export class GroupsController {
         this.settlementsService.list(groupId, userId),
       ]);
 
+      const rejected = results
+        .map((r, i) => ({ r, i }))
+        .filter(({ r }) => r.status === "rejected");
+
+      if (rejected.length > 0) {
+        // Log detailed error for diagnostics
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const first = rejected[0] as any;
+        const err = first.r.reason ?? first.r.reason?.message ?? "Unknown error";
+        const svcNames = ["group", "policy", "expenses", "balances", "members", "settlements"];
+        const svc = svcNames[first.i] ?? String(first.i);
+        return fail(`Failed to load ${svc}: ${err}`, 500, first.r.reason);
+      }
+
+      // All fulfilled
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const [group, policy, expenses, balances, members, settlements] = results.map((r: any) => r.value);
+
+      // Serialize possible Dates/ObjectIds to safe JSON primitives
+      const serializeExpense = (e: any) => ({
+        ...e,
+        _id: String(e._id),
+        expenseDate: e.expenseDate ? new Date(e.expenseDate).toISOString() : null,
+      });
+
+      const serializeSettlement = (s: any) => ({
+        ...s,
+        _id: String(s._id),
+        createdAt: s.createdAt ? new Date(s.createdAt).toISOString() : null,
+        receiverDecisionAt: s.receiverDecisionAt ? new Date(s.receiverDecisionAt).toISOString() : null,
+        senderConfirmedAt: s.senderConfirmedAt ? new Date(s.senderConfirmedAt).toISOString() : null,
+      });
+
+      const serializeMember = (m: any) => ({
+        ...m,
+        id: String(m.id ?? m._id ?? m.userId),
+      });
+
       return ok({
         group,
         policy,
-        expenses,
-        balances,
-        members,
-        settlements,
+        expenses: Array.isArray(expenses) ? expenses.map(serializeExpense) : [],
+        balances: Array.isArray(balances) ? balances : [],
+        members: Array.isArray(members) ? members.map(serializeMember) : [],
+        settlements: Array.isArray(settlements) ? settlements.map(serializeSettlement) : [],
       });
     } catch (error) {
-      if (error instanceof ApiError) return fail(error.message, error.statusCode);
-      return fail("Internal server error", 500);
+      if (error instanceof ApiError) return fail(error.message, error.statusCode, error);
+      return fail("Internal server error", 500, error);
     }
   }
 
