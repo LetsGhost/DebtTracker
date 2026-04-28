@@ -2,8 +2,9 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { verifyAccessToken } from "@/backend/common/auth/auth";
+import { connectDatabase } from "@/backend/common/database/db";
 import { env } from "@/backend/common/config/env";
-import { container } from "@/backend/container";
+import { UserModel } from "@/backend/modules/users/users.entity";
 
 export type CurrentUser = {
   id: string;
@@ -22,19 +23,22 @@ export const getCurrentUser = async (): Promise<CurrentUser | null> => {
     return null;
   }
 
-  const response = await container.authController.me();
+  await connectDatabase();
 
-  if (!response.ok) {
+  const user = await UserModel.findById(payload.userId).lean();
+
+  if (!user) {
     return null;
   }
 
-  const json = (await response.json()) as { success?: boolean; data?: CurrentUser };
-
-  if (!json.success || !json.data) {
-    return null;
-  }
-
-  return json.data;
+  return {
+    id: String(user._id),
+    displayName: user.displayName,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    emailNotificationsEnabled: user.emailNotificationsEnabled !== false,
+  };
 };
 
 export const getCurrentUserOrRedirect = async (): Promise<CurrentUser> => {
