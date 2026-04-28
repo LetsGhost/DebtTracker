@@ -1,13 +1,12 @@
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { env } from "@/backend/common/config/env";
+import { getCurrentUser } from "@/app/_lib/get-current-user";
 import { RegisterPage } from "@/frontend/modules/auth/pages/RegisterPage";
 
 export default async function RegisterRoute() {
-  const token = (await cookies()).get(env.jwtCookieName)?.value;
+  const user = await getCurrentUser();
 
-  if (token) {
+  if (user) {
     redirect("/dashboard");
   }
 
