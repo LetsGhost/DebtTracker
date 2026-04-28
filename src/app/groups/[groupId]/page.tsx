@@ -29,5 +29,35 @@ export default async function GroupDetailsRoute({ params }: GroupRouteProps) {
     settlementsService.list(groupId, user.id),
   ]);
 
-  return <GroupDetailsPage groupId={groupId} userId={user.id} initialBundle={{ group, policy, expenses, balances, members, settlements }} />;
+  // Serialize values that may contain Date/ObjectId instances so they are
+  // safe to pass as props to client components.
+  const serializeExpense = (e: any) => ({
+    ...e,
+    _id: String(e._id),
+    expenseDate: e.expenseDate ? new Date(e.expenseDate).toISOString() : null,
+  });
+
+  const serializeSettlement = (s: any) => ({
+    ...s,
+    _id: String(s._id),
+    createdAt: s.createdAt ? new Date(s.createdAt).toISOString() : null,
+    receiverDecisionAt: s.receiverDecisionAt ? new Date(s.receiverDecisionAt).toISOString() : null,
+    senderConfirmedAt: s.senderConfirmedAt ? new Date(s.senderConfirmedAt).toISOString() : null,
+  });
+
+  const serializeMember = (m: any) => ({
+    ...m,
+    id: String(m.id ?? m._id ?? m.userId),
+  });
+
+  const initialBundle = {
+    group,
+    policy,
+    expenses: Array.isArray(expenses) ? expenses.map(serializeExpense) : [],
+    balances: Array.isArray(balances) ? balances : [],
+    members: Array.isArray(members) ? members.map(serializeMember) : [],
+    settlements: Array.isArray(settlements) ? settlements.map(serializeSettlement) : [],
+  };
+
+  return <GroupDetailsPage groupId={groupId} userId={user.id} initialBundle={initialBundle} />;
 }
