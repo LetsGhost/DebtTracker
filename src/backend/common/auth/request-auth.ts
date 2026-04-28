@@ -12,5 +12,9 @@ export const getUserIdFromRequest = (request: NextRequest): string => {
     throw new ApiError("Unauthorized", 401);
   }
 
+  if (!payload.verified) {
+    throw new ApiError("Please verify your email before using the app", 403);
+  }
+
   return payload.userId;
 };

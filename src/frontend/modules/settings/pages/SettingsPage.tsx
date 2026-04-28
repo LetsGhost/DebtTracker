@@ -19,6 +19,7 @@ type SettingsPageProps = {
     email: string;
     firstName?: string;
     lastName?: string;
+    emailNotificationsEnabled?: boolean;
   };
 };
 
@@ -28,6 +29,7 @@ type UpdateSettingsResponse = {
   displayName: string;
   firstName?: string;
   lastName?: string;
+  emailNotificationsEnabled?: boolean;
 };
 
 const deriveNames = (displayName: string) => {
@@ -58,13 +60,14 @@ export const SettingsPage = ({ user }: SettingsPageProps) => {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [emailNotificationsEnabled, setEmailNotificationsEnabled] = useState(user.emailNotificationsEnabled !== false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const openTermsDialog = async () => {
     await dialog.open({
       title: "Terms of Service",
-      description: "Nutzungsbedingungen fuer FinancTracker",
+      description: "Nutzungsbedingungen fuer YouOme",
       cancelLabel: "Schliessen",
       children: (
         <div className="space-y-2">
@@ -85,9 +88,6 @@ export const SettingsPage = ({ user }: SettingsPageProps) => {
       children: (
         <div className="space-y-2">
           <p><strong>v1.0.0</strong> Initiale stabile Version.</p>
-          <p><strong>v1.1.0</strong> Verbesserte Gruppen- und Settlement-Workflows.</p>
-          <p><strong>v1.2.0</strong> Notification-Clear-Funktion und UX-Optimierungen.</p>
-          <p><strong>v1.3.0</strong> Neue User-Settings fuer Namen und Passwort.</p>
         </div>
       ),
     });
@@ -146,9 +146,11 @@ export const SettingsPage = ({ user }: SettingsPageProps) => {
         lastName: string;
         currentPassword?: string;
         newPassword?: string;
+        emailNotificationsEnabled: boolean;
       } = {
         firstName: normalizedFirstName,
         lastName: normalizedLastName,
+        emailNotificationsEnabled,
       };
 
       if (wantsPasswordChange) {
@@ -160,6 +162,7 @@ export const SettingsPage = ({ user }: SettingsPageProps) => {
 
       setFirstName(updated.firstName ?? normalizedFirstName);
       setLastName(updated.lastName ?? normalizedLastName);
+      setEmailNotificationsEnabled(updated.emailNotificationsEnabled !== false);
       setCurrentPassword("");
       setNewPassword("");
       setConfirmNewPassword("");
@@ -239,6 +242,15 @@ export const SettingsPage = ({ user }: SettingsPageProps) => {
             </div>
 
             <div className="mt-4 rounded-xl border border-black/10 bg-black/5 p-3">
+              <label className="mb-3 flex items-center justify-between rounded-lg bg-white px-3 py-2 text-sm">
+                <span className="font-semibold">Notification-Emails aktivieren</span>
+                <input
+                  type="checkbox"
+                  checked={emailNotificationsEnabled}
+                  onChange={(event) => setEmailNotificationsEnabled(event.target.checked)}
+                />
+              </label>
+
               <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
                 <Lock size={16} />
                 Passwort aendern (optional)

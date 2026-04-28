@@ -10,7 +10,6 @@ export const RegisterPage = () => (
       </section>
       <Card>
         <h2 className="mb-1 text-2xl font-bold">Create account</h2>
-        <p className="mb-5 text-sm text-(--text-muted)">Your workspace starts with local auth + JWT.</p>
         <AuthForm mode="register" />
       </Card>
     </div>

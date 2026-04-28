@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Shield, Trash2, UserCog, UserPlus, Users } from "lucide-react";
 
 import { Button } from "@/frontend/shared/components/Button";
@@ -47,15 +47,13 @@ export const GroupsPage = () => {
     members.map((member) => [member.userId, member.displayName || member.email || "Unknown member"]),
   );
 
-  const refreshGroups = async () => {
+  const refreshGroups = useCallback(async () => {
     const result = await apiGet<Group[]>("/api/groups");
     setGroups(result);
-    if (result.length > 0 && !selectedGroupId) {
-      setSelectedGroupId(result[0].id);
-    }
-  };
+    setSelectedGroupId((current) => current || result[0]?.id || "");
+  }, []);
 
-  const refreshGroupData = async (groupId: string) => {
+  const refreshGroupData = useCallback(async (groupId: string) => {
     const [membersResult, invitesResult, policyResult] = await Promise.all([
       apiGet<GroupMember[]>(`/api/groups/${groupId}/members`),
       apiGet<GroupInvite[]>(`/api/groups/${groupId}/invites`),
@@ -65,16 +63,28 @@ export const GroupsPage = () => {
     setMembers(membersResult);
     setInvites(invitesResult);
     setPolicy(policyResult);
-  };
-
-  useEffect(() => {
-    void refreshGroups().catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load groups"));
   }, []);
 
   useEffect(() => {
+    void (async () => {
+      try {
+        await refreshGroups();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to load groups");
+      }
+    })();
+  }, [refreshGroups]);
+
+  useEffect(() => {
     if (!selectedGroupId) return;
-    void refreshGroupData(selectedGroupId).catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load group data"));
-  }, [selectedGroupId]);
+    void (async () => {
+      try {
+        await refreshGroupData(selectedGroupId);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to load group data");
+      }
+    })();
+  }, [refreshGroupData, selectedGroupId]);
 
   const onCreateGroup = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

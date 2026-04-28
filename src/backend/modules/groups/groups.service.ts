@@ -1,5 +1,6 @@
 import { ApiError } from "@/backend/common/errors/errors";
 import { getEventBus } from "@/backend/common/events/event-bus";
+import { FriendRequestModel } from "@/backend/modules/friends/friends.entity";
 import { GroupModel } from "@/backend/modules/groups/group.entity";
 import { GroupInviteModel } from "@/backend/modules/groups/group-invite.entity";
 import { GroupMemberModel } from "@/backend/modules/groups/group-member.entity";
@@ -7,6 +8,18 @@ import { GroupPolicyModel } from "@/backend/modules/groups/group-policy.entity";
 import { UserModel } from "@/backend/modules/users/users.entity";
 import { canInvite, canManageMembers, getMemberContext, isAdminRole } from "@/backend/modules/groups/groups.permissions";
 import type { GroupRole } from "@/backend/modules/groups/groups.types";
+
+const toPlainPolicy = (policy: any) => ({
+  id: String(policy._id),
+  groupId: String(policy.groupId),
+  canMembersInvite: Boolean(policy.canMembersInvite),
+  canEditorsAddExpense: Boolean(policy.canEditorsAddExpense),
+  canModeratorsAddExpense: Boolean(policy.canModeratorsAddExpense),
+  visibilityMode: policy.visibilityMode as "transparent" | "private" | "hybrid",
+  canViewParticipatedExpenseDetails: Boolean(policy.canViewParticipatedExpenseDetails),
+  requireReceiverConfirmationForSettlement: Boolean(policy.requireReceiverConfirmationForSettlement),
+  allowMemberRoleSelfLeave: Boolean(policy.allowMemberRoleSelfLeave),
+});
 
 export class GroupsService {
   async getGroup(groupId: string, actorUserId: string) {
@@ -86,6 +99,18 @@ export class GroupsService {
 
     if (existingMember) {
       throw new ApiError("User already in group", 409);
+    }
+
+    const friendRelation = await FriendRequestModel.findOne({
+      status: "accepted",
+      $or: [
+        { requesterUserId: actorUserId, recipientUserId: invitedUserId },
+        { requesterUserId: invitedUserId, recipientUserId: actorUserId },
+      ],
+    }).lean();
+
+    if (!friendRelation) {
+      throw new ApiError("You can only invite users from your friends list", 403);
     }
 
     const invite = await GroupInviteModel.create({
@@ -282,7 +307,11 @@ export class GroupsService {
       { returnDocument: "after" },
     ).lean();
 
-    return updated;
+    if (!updated) {
+      throw new ApiError("Policy not found", 404);
+    }
+
+    return toPlainPolicy(updated);
   }
 
   async getPolicy(groupId: string, actorUserId: string) {
@@ -293,7 +322,7 @@ export class GroupsService {
       throw new ApiError("Policy not found", 404);
     }
 
-    return policy;
+    return toPlainPolicy(policy);
   }
 
   async listInvites(groupId: string, actorUserId: string) {
@@ -317,7 +346,14 @@ export class GroupsService {
     return invites.map((invite: any) => {
       const user = userMap.get(invite.invitedUserId) ?? { displayName: "", email: "" };
       return {
-        ...invite,
+        _id: String(invite._id),
+        groupId: String(invite.groupId),
+        invitedUserId: String(invite.invitedUserId),
+        invitedByUserId: String(invite.invitedByUserId),
+        message: invite.message ?? null,
+        status: invite.status,
+        actedAt: invite.actedAt ? new Date(invite.actedAt).toISOString() : null,
+        createdAt: invite.createdAt ? new Date(invite.createdAt).toISOString() : null,
         invitedUserDisplayName: user.displayName,
         invitedUserEmail: user.email,
       };

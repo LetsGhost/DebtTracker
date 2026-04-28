@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/frontend/shared/components/Button";
@@ -19,27 +19,24 @@ export const GroupCreatePage = () => {
   const [userResults, setUserResults] = useState<UserOption[]>([]);
   const [selectedInvitees, setSelectedInvitees] = useState<UserOption[]>([]);
 
-  useEffect(() => {
-    if (userQuery.trim().length < 2) {
+  const loadUserResults = async (query: string) => {
+    if (query.trim().length < 2) {
       setUserResults([]);
       return;
     }
 
-    let active = true;
-    void apiGet<UserOption[]>(`/api/users?query=${encodeURIComponent(userQuery)}`)
-      .then((users) => {
-        if (!active) return;
-        setUserResults(users);
-      })
-      .catch(() => {
-        if (!active) return;
-        setUserResults([]);
-      });
+    try {
+      const users = await apiGet<UserOption[]>(`/api/users?query=${encodeURIComponent(query)}`);
+      setUserResults(users);
+    } catch {
+      setUserResults([]);
+    }
+  };
 
-    return () => {
-      active = false;
-    };
-  }, [userQuery]);
+  const onUserQueryChange = (value: string) => {
+    setUserQuery(value);
+    void loadUserResults(value);
+  };
 
   const addInvitee = (user: UserOption) => {
     setSelectedInvitees((current) => (current.some((x) => x.id === user.id) ? current : [...current, user]));
@@ -92,7 +89,7 @@ export const GroupCreatePage = () => {
             <span>Invite users</span>
             <input
               value={userQuery}
-              onChange={(event) => setUserQuery(event.target.value)}
+              onChange={(event) => onUserQueryChange(event.target.value)}
               className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm"
               placeholder="Search by name or email"
             />

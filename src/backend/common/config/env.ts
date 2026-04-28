@@ -7,9 +7,10 @@ for (const key of required) {
 }
 
 export const env = {
-  appName: process.env.NEXT_PUBLIC_APP_NAME ?? "FinancTracker",
+  appName: process.env.NEXT_PUBLIC_APP_NAME ?? "YouOme",
   mongodbUri: process.env.MONGODB_URI as string,
   jwtSecret: process.env.JWT_SECRET as string,
+  logDir: process.env.LOG_DIR ?? (process.env.NODE_ENV === "production" ? "/app/logs" : "logs"),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "7d",
   jwtCookieName: process.env.JWT_COOKIE_NAME ?? "ft_token",
   appUrl: process.env.APP_URL ?? "http://localhost:3000",

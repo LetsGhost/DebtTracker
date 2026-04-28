@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "@/frontend/shared/components/Button";
 import { Card } from "@/frontend/shared/components/Card";
@@ -18,18 +18,38 @@ type GroupPolicy = {
   visibilityMode: "transparent" | "private" | "hybrid";
 };
 
-type GroupEditPageProps = { groupId: string };
+type GroupEditPageProps = {
+  groupId: string;
+  initialGroup: Group;
+  initialMembers: GroupMember[];
+  initialInvites: GroupInvite[];
+  initialPolicy: GroupPolicy;
+};
 type UserOption = { id: string; displayName: string; email: string };
 
-export const GroupEditPage = ({ groupId }: GroupEditPageProps) => {
-  const [group, setGroup] = useState<Group | null>(null);
-  const [members, setMembers] = useState<GroupMember[]>([]);
-  const [invites, setInvites] = useState<GroupInvite[]>([]);
-  const [policy, setPolicy] = useState<GroupPolicy | null>(null);
+export const GroupEditPage = ({ groupId, initialGroup, initialMembers, initialInvites, initialPolicy }: GroupEditPageProps) => {
+  const [group, setGroup] = useState<Group | null>(initialGroup);
+  const [members, setMembers] = useState<GroupMember[]>(initialMembers);
+  const [invites, setInvites] = useState<GroupInvite[]>(initialInvites);
+  const [policy, setPolicy] = useState<GroupPolicy | null>(initialPolicy);
   const [userQuery, setUserQuery] = useState("");
   const [userResults, setUserResults] = useState<UserOption[]>([]);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  const loadUserResults = async (query: string) => {
+    if (query.trim().length < 2) {
+      setUserResults([]);
+      return;
+    }
+
+    try {
+      const users = await apiGet<UserOption[]>(`/api/users?query=${encodeURIComponent(query)}`);
+      setUserResults(users);
+    } catch {
+      setUserResults([]);
+    }
+  };
 
   const load = async () => {
     const [groupResult, membersResult, invitesResult, policyResult] = await Promise.all([
@@ -45,31 +65,10 @@ export const GroupEditPage = ({ groupId }: GroupEditPageProps) => {
     setPolicy(policyResult);
   };
 
-  useEffect(() => {
-    void load().catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load edit data"));
-  }, [groupId]);
-
-  useEffect(() => {
-    if (userQuery.trim().length < 2) {
-      setUserResults([]);
-      return;
-    }
-
-    let active = true;
-    void apiGet<UserOption[]>(`/api/users?query=${encodeURIComponent(userQuery)}`)
-      .then((users) => {
-        if (!active) return;
-        setUserResults(users);
-      })
-      .catch(() => {
-        if (!active) return;
-        setUserResults([]);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [userQuery]);
+  const onUserQueryChange = (value: string) => {
+    setUserQuery(value);
+    void loadUserResults(value);
+  };
 
   const onInvite = async (invitedUserId: string) => {
     try {
@@ -182,7 +181,7 @@ export const GroupEditPage = ({ groupId }: GroupEditPageProps) => {
               name="userSearch"
               label="Search users"
               value={userQuery}
-              onChange={(event) => setUserQuery(event.target.value)}
+              onChange={(event) => onUserQueryChange(event.target.value)}
               placeholder="Type name or email"
             />
             {userResults.length > 0 && (

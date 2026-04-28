@@ -49,6 +49,7 @@ type SysAdminUser = {
 
 type SysAdminPageProps = {
   initialStats: Stats;
+  initialUsers: SysAdminUser[];
 };
 
 const formatDate = (value: string | null) => {
@@ -58,13 +59,13 @@ const formatDate = (value: string | null) => {
   return date.toISOString().slice(0, 16).replace("T", " ");
 };
 
-export const SysAdminPage = ({ initialStats }: SysAdminPageProps) => {
+export const SysAdminPage = ({ initialStats, initialUsers }: SysAdminPageProps) => {
   const toast = useToast();
   const dialog = useDialog();
 
   const [stats, setStats] = useState<Stats>(initialStats);
   const [query, setQuery] = useState("");
-  const [users, setUsers] = useState<SysAdminUser[]>([]);
+  const [users, setUsers] = useState<SysAdminUser[]>(initialUsers);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
 
@@ -82,12 +83,6 @@ export const SysAdminPage = ({ initialStats }: SysAdminPageProps) => {
       setIsLoadingUsers(false);
     }
   };
-
-  useEffect(() => {
-    void loadUsers().catch((error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to load users");
-    });
-  }, [toast]);
 
   const statsCards = useMemo(
     () => [

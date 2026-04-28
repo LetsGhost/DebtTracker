@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Bell, Check, CheckCheck, ArrowLeft, ArrowRight, Trash2, XCircle } from "lucide-react";
 
 import { Button } from "@/frontend/shared/components/Button";
@@ -17,6 +17,7 @@ type DashboardNotificationsPageProps = {
     displayName: string;
     email: string;
   };
+  initialNotifications: Notification[];
 };
 
 type Notification = { _id: string; type: string; payload: Record<string, unknown>; createdAt: string; readAt?: string };
@@ -50,20 +51,20 @@ const formatDateTime = (value: string) => {
   return date.toISOString().slice(0, 16).replace("T", " ");
 };
 
-export const DashboardNotificationsPage = ({ user }: DashboardNotificationsPageProps) => {
+export const DashboardNotificationsPage = ({ user, initialNotifications }: DashboardNotificationsPageProps) => {
   const toast = useToast();
   const dialog = useDialog();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
   const [busyNotificationId, setBusyNotificationId] = useState<string | null>(null);
 
-  const load = async () => {
-    const result = await apiGet<Notification[]>("/api/notifications");
-    setNotifications(result);
+  const loadNotifications = async () => {
+    try {
+      const result = await apiGet<Notification[]>("/api/notifications");
+      setNotifications(result);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to load notifications");
+    }
   };
-
-  useEffect(() => {
-    void load().catch((e: unknown) => toast.error(e instanceof Error ? e.message : "Failed to load notifications"));
-  }, [toast]);
 
   const unreadCount = useMemo(() => notifications.filter((n) => !n.readAt).length, [notifications]);
 
@@ -72,7 +73,7 @@ export const DashboardNotificationsPage = ({ user }: DashboardNotificationsPageP
     try {
       await apiPost(`/api/notifications/${notificationId}/read`, {});
       toast.success("Marked as read.");
-      await load();
+      await loadNotifications();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to mark notification as read");
     } finally {
@@ -85,7 +86,7 @@ export const DashboardNotificationsPage = ({ user }: DashboardNotificationsPageP
     try {
       await apiPost(`/api/notifications/${notificationId}/delete`, {});
       toast.success("Notification deleted.");
-      await load();
+      await loadNotifications();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to delete notification");
     } finally {
@@ -104,7 +105,7 @@ export const DashboardNotificationsPage = ({ user }: DashboardNotificationsPageP
             try {
               await apiDelete("/api/notifications/clear");
               toast.success("All notifications cleared.");
-              await load();
+              await loadNotifications();
             } catch (e) {
               toast.error(e instanceof Error ? e.message : "Failed to clear notifications");
             }
@@ -130,7 +131,7 @@ export const DashboardNotificationsPage = ({ user }: DashboardNotificationsPageP
         await apiPost(`/api/notifications/${notification._id}/read`, {});
       }
       toast.success(`Invite accepted${payload.groupName ? ` for ${payload.groupName}` : ""}.`);
-      await load();
+      await loadNotifications();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to accept invite");
     } finally {
@@ -154,7 +155,7 @@ export const DashboardNotificationsPage = ({ user }: DashboardNotificationsPageP
         await apiPost(`/api/notifications/${notification._id}/read`, {});
       }
       toast.success(`Payment confirmed${payload.groupName ? ` in ${payload.groupName}` : ""}.`);
-      await load();
+      await loadNotifications();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to confirm settlement");
     } finally {
@@ -178,7 +179,7 @@ export const DashboardNotificationsPage = ({ user }: DashboardNotificationsPageP
         await apiPost(`/api/notifications/${notification._id}/read`, {});
       }
       toast.success(`Payment declined${payload.groupName ? ` in ${payload.groupName}` : ""}.`);
-      await load();
+      await loadNotifications();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to decline settlement");
     } finally {

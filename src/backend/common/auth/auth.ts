@@ -4,11 +4,14 @@ import { NextResponse } from "next/server";
 import { APP_CONSTANTS } from "@/backend/common/config/constants";
 import { env } from "@/backend/common/config/env";
 
-type TokenPayload = JwtPayload & { userId: string };
+type TokenPayload = JwtPayload & {
+  userId: string;
+  verified: boolean;
+};
 
-export const signAccessToken = (userId: string) => {
+export const signAccessToken = (userId: string, verified = true) => {
   const options: SignOptions = { expiresIn: env.jwtExpiresIn as SignOptions["expiresIn"] };
-  return jwt.sign({ userId }, env.jwtSecret, options);
+  return jwt.sign({ userId, verified }, env.jwtSecret, options);
 };
 
 export const verifyAccessToken = (token?: string): TokenPayload | null => {

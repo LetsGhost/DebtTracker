@@ -48,10 +48,6 @@ const shellStyles = {
 
 const EmailShell = ({ appName, title, preview, children, ctaLabel, ctaUrl }: EmailShellProps) => (
   <html>
-    <head>
-      <title>{title}</title>
-      <meta name="description" content={preview} />
-    </head>
     <body style={shellStyles.page}>
       <div style={{ display: "none", overflow: "hidden", lineHeight: "1px", opacity: 0, maxHeight: 0, maxWidth: 0 }}>
         {preview}

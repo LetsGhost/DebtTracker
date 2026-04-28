@@ -10,6 +10,8 @@ import { CollaborationsController } from "@/backend/modules/collaborations/colla
 import { CollaborationsService } from "@/backend/modules/collaborations/collaborations.service";
 import { ExpensesController } from "@/backend/modules/expenses/expenses.controller";
 import { ExpensesService } from "@/backend/modules/expenses/expenses.service";
+import { FriendsController } from "@/backend/modules/friends/friends.controller";
+import { FriendsService } from "@/backend/modules/friends/friends.service";
 import { GroupsController } from "@/backend/modules/groups/groups.controller";
 import { GroupsService } from "@/backend/modules/groups/groups.service";
 import { MinimizationController } from "@/backend/modules/minimization/minimization.controller";
@@ -36,6 +38,7 @@ const budgetsService = new BudgetsService();
 const collaborationsService = new CollaborationsService();
 const groupsService = new GroupsService();
 const expensesService = new ExpensesService();
+const friendsService = new FriendsService();
 const balancesService = new BalancesService();
 const settlementsService = new SettlementsService();
 const minimizationService = new MinimizationService();
@@ -54,6 +57,7 @@ export const container = {
   collaborationsController: new CollaborationsController(collaborationsService),
   groupsController: new GroupsController(groupsService, expensesService, balancesService, settlementsService),
   expensesController: new ExpensesController(expensesService),
+  friendsController: new FriendsController(friendsService),
   balancesController: new BalancesController(balancesService),
   settlementsController: new SettlementsController(settlementsService),
   minimizationController: new MinimizationController(minimizationService),

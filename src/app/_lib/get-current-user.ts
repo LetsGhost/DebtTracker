@@ -9,6 +9,9 @@ export type CurrentUser = {
   id: string;
   displayName: string;
   email: string;
+  firstName?: string;
+  lastName?: string;
+  emailNotificationsEnabled?: boolean;
 };
 
 export const getCurrentUserOrRedirect = async (): Promise<CurrentUser> => {
@@ -19,7 +22,17 @@ export const getCurrentUserOrRedirect = async (): Promise<CurrentUser> => {
     redirect("/login");
   }
 
-  return container.authController
-    .me()
-    .then(async (response) => (await response.json()).data as CurrentUser);
+  const response = await container.authController.me();
+
+  if (!response.ok) {
+    redirect("/login");
+  }
+
+  const json = await response.json() as { success?: boolean; data?: CurrentUser };
+
+  if (!json.success || !json.data) {
+    redirect("/login");
+  }
+
+  return json.data;
 };

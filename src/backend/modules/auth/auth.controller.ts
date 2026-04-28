@@ -7,6 +7,7 @@ import { fail, ok } from "@/backend/common/http/response";
 import { validateDto } from "@/backend/common/validation/validation";
 import {
   LoginDto,
+  ResendVerificationEmailDto,
   RegisterDto,
   RequestPasswordResetDto,
   ResetPasswordDto,
@@ -21,10 +22,8 @@ export class AuthController {
     try {
       await connectDatabase();
       const dto = await validateDto(RegisterDto, await request.json());
-      const { user, token } = await this.authService.register(dto);
-      const response = ok(user, 201);
-      setAuthCookie(response, token);
-      return response;
+      const user = await this.authService.register(dto);
+      return ok(user, 201);
     } catch (error) {
       if (error instanceof ApiError) {
         return fail(error.message, error.statusCode, error);
@@ -93,6 +92,19 @@ export class AuthController {
       await connectDatabase();
       const dto = await validateDto(VerifyEmailDto, await request.json());
       return ok(await this.authService.verifyEmail(dto));
+    } catch (error) {
+      if (error instanceof ApiError) {
+        return fail(error.message, error.statusCode, error);
+      }
+      return fail("Internal server error", 500, error);
+    }
+  }
+
+  async resendVerificationEmail(request: NextRequest) {
+    try {
+      await connectDatabase();
+      const dto = await validateDto(ResendVerificationEmailDto, await request.json());
+      return ok(await this.authService.resendVerificationEmail(dto));
     } catch (error) {
       if (error instanceof ApiError) {
         return fail(error.message, error.statusCode, error);

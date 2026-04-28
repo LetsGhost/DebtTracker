@@ -30,10 +30,16 @@ export class UserEntity extends MetadataEntity {
   emailVerifiedAt?: Date;
 
   @prop()
+  emailVerificationLastSentAt?: Date;
+
+  @prop()
   suspendedAt?: Date;
 
   @prop()
   lastLoginAt?: Date;
+
+  @prop({ default: true })
+  emailNotificationsEnabled!: boolean;
 }
 
 export const UserModel = getModelForClass(UserEntity);

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { LogOut, Plus, Settings, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 
 import { Button } from "@/frontend/shared/components/Button";
@@ -52,7 +52,7 @@ type GroupDetailsBundle = {
   settlements: Settlement[];
 };
 
-type GroupDetailsPageProps = { groupId: string; userId: string };
+type GroupDetailsPageProps = { groupId: string; userId: string; initialBundle: GroupDetailsBundle };
 
 const formatDate = (value: string) => {
   const date = new Date(value);
@@ -60,18 +60,18 @@ const formatDate = (value: string) => {
   return date.toISOString().slice(0, 10);
 };
 
-export const GroupDetailsPage = ({ groupId, userId }: GroupDetailsPageProps) => {
-  const [group, setGroup] = useState<GroupDetails | null>(null);
-  const [policy, setPolicy] = useState<GroupPolicy | null>(null);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [balances, setBalances] = useState<BalanceRow[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [settlements, setSettlements] = useState<Settlement[]>([]);
+export const GroupDetailsPage = ({ groupId, userId, initialBundle }: GroupDetailsPageProps) => {
+  const [group, setGroup] = useState<GroupDetails | null>(initialBundle.group);
+  const [policy, setPolicy] = useState<GroupPolicy | null>(initialBundle.policy);
+  const [expenses, setExpenses] = useState<Expense[]>(initialBundle.expenses);
+  const [balances, setBalances] = useState<BalanceRow[]>(initialBundle.balances);
+  const [members, setMembers] = useState<Member[]>(initialBundle.members);
+  const [settlements, setSettlements] = useState<Settlement[]>(initialBundle.settlements);
   const [pendingDebtActions, setPendingDebtActions] = useState<string[]>([]);
   const [paymentDrafts, setPaymentDrafts] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
 
-  const load = async () => {
+  const loadGroupDetails = async () => {
     try {
       const result = await apiGet<GroupDetailsBundle>(`/api/groups/${groupId}/details`);
 
@@ -85,10 +85,6 @@ export const GroupDetailsPage = ({ groupId, userId }: GroupDetailsPageProps) => 
       setError(e instanceof Error ? e.message : "Failed to load group");
     }
   };
-
-  useEffect(() => {
-    void load();
-  }, [groupId]);
 
   const memberMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -115,27 +111,6 @@ export const GroupDetailsPage = ({ groupId, userId }: GroupDetailsPageProps) => 
       .forEach((s) => keys.add(`${s.toUserId}:${s.amount.toFixed(2)}`));
     return keys;
   }, [settlements, userId]);
-
-  useEffect(() => {
-    setPaymentDrafts((current) => {
-      const next = { ...current };
-      const activeToUserIds = new Set(userDebts.map((row) => row.toUserId));
-
-      userDebts.forEach((row) => {
-        if (!next[row.toUserId]) {
-          next[row.toUserId] = row.amount.toFixed(2);
-        }
-      });
-
-      Object.keys(next).forEach((toUserId) => {
-        if (!activeToUserIds.has(toUserId)) {
-          delete next[toUserId];
-        }
-      });
-
-      return next;
-    });
-  }, [userDebts]);
 
   const confirmedSettlements = useMemo(() => {
     return settlements
@@ -168,7 +143,7 @@ export const GroupDetailsPage = ({ groupId, userId }: GroupDetailsPageProps) => 
         toUserId,
         amount,
       });
-      await load();
+      await loadGroupDetails();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to send payment confirmation");
     } finally {
@@ -276,7 +251,7 @@ export const GroupDetailsPage = ({ groupId, userId }: GroupDetailsPageProps) => 
         <Card>
           <div className="flex items-center gap-2 text-gray-600">
             <TrendingUp size={18} />
-            <h3 className="font-semibold">You're Owed</h3>
+            <h3 className="font-semibold">You&apos;re Owed</h3>
           </div>
           <p className="mt-2 text-3xl font-bold text-green-600">{totalOwed.toFixed(2)}</p>
           <div className="mt-3 space-y-2">
