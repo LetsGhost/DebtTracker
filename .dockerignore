@@ -1,0 +1,47 @@
+# Node / package
+node_modules
+npm-debug.log
+yarn-error.log
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+.pnp
+.pnp.js
+
+# Next.js build outputs
+.next
+.out
+dist
+
+# Local env / secrets
+.env
+.env.*.local
+.env.local
+
+# Logs
+logs
+*.log
+*.log.*
+
+# Git
+.git
+.gitignore
+
+# Editors & OS
+.vscode
+.idea
+.DS_Store
+*.swp
+
+# Test / coverage / temp
+coverage
+coverage/
+tmp
+temp
+.cache
+
+# Docker files
+.dockerignore
+
+# Misc
+*.tgz
