@@ -1,4 +1,5 @@
 import { ApiError } from "@/backend/common/errors/errors";
+import { toObjectId } from "@/backend/common/models/id-helper";
 import { NotificationModel } from "@/backend/modules/notifications/notification.entity";
 
 const toPlainNotification = (notification: any) => ({
@@ -18,7 +19,7 @@ export class NotificationsService {
 
   async markAsRead(userId: string, notificationId: string) {
     const notification = await NotificationModel.findOneAndUpdate(
-      { _id: notificationId, userId },
+      { _id: toObjectId(notificationId), userId },
       { $set: { readAt: new Date() } },
       { returnDocument: "after" },
     ).lean();
@@ -28,7 +29,7 @@ export class NotificationsService {
 
   async delete(userId: string, notificationId: string) {
     const result = await NotificationModel.deleteOne({
-      _id: notificationId,
+      _id: toObjectId(notificationId),
       userId,
     });
 

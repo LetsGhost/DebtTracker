@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 
 import { ApiError } from "@/backend/common/errors/errors";
 import { logger } from "@/backend/common/logging/logger";
+import { toObjectId } from "@/backend/common/models/id-helper";
 import { FriendRequestModel } from "@/backend/modules/friends/friends.entity";
 import { GroupInviteModel } from "@/backend/modules/groups/group-invite.entity";
 import { GroupMemberModel } from "@/backend/modules/groups/group-member.entity";
@@ -166,11 +167,11 @@ export class UsersService {
   }
 
   async touchVerificationEmailSent(userId: string) {
-    await UserModel.updateOne({ _id: userId }, { $set: { emailVerificationLastSentAt: new Date() } });
+    await UserModel.updateOne({ _id: toObjectId(userId) }, { $set: { emailVerificationLastSentAt: new Date() } });
   }
 
   async touchLastLogin(userId: string) {
-    await UserModel.updateOne({ _id: userId }, { $set: { lastLoginAt: new Date() } });
+    await UserModel.updateOne({ _id: toObjectId(userId) }, { $set: { lastLoginAt: new Date() } });
   }
 
   async markEmailVerified(userId: string) {
