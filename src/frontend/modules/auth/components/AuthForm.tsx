@@ -48,8 +48,7 @@ export const AuthForm = ({ mode }: AuthFormProps) => {
       const path = mode === "login" ? "/api/auth/login" : "/api/auth/register";
       const body = mode === "login" ? { email: payload.email, password: payload.password } : payload;
       await apiPost<AuthResponse>(path, body);
-      router.push(mode === "login" ? "/dashboard" : "/login");
-      router.refresh();
+      router.replace(mode === "login" ? "/dashboard" : "/login");
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Authentication failed");
     } finally {
